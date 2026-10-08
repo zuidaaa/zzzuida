@@ -41,6 +41,7 @@ class ChatRepository(
 
     fun getFilesByFolder(folderName: String): Flow<List<FolderFileEntity>> = folderDao.getFilesByFolder(folderName)
     fun searchFolderFiles(query: String): Flow<List<FolderFileEntity>> = folderDao.searchFolderFiles(query)
+    fun getAllFolders(): Flow<List<String>> = folderDao.getAllFolders()
     suspend fun insertFolderFile(file: FolderFileEntity) = folderDao.insertFile(file)
     suspend fun deleteFolderFile(file: FolderFileEntity) = folderDao.deleteFile(file)
 

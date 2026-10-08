@@ -1,0 +1,27 @@
+{
+  "project_name": "Tnk Insd th bx...",
+  "layout_rationalization": {
+    "primary_navigation": {
+      "pattern": "Edge Panel (Right-side Drawer)",
+      "justification": "The application contains 7 primary functional modules, exceeding the recommended 3-5 items for a Bottom Navigation Bar. A scrollable side drawer provides a scalable solution for complex AI utility suites.",
+      "research_alignment": "Consistent with modern patterns for 'Secondary Navigation' and 'Complex Hierarchies' where accessibility to numerous tools is required without cluttering the main UI."
+    },
+    "quick_actions": {
+      "pattern": "Right Sidebar (Icon-only Rail)",
+      "justification": "Provides instant one-tap access to the Menu, New Chat, and Settings from any screen, minimizing the 'reachability' issue of top-mounted buttons.",
+      "research_alignment": "Aligns with 'Radical Reachability' trends and Samsung-specific Edge Panel UX patterns for utility-centric apps."
+    },
+    "data_persistence": {
+      "pattern": "3-Folder Foundation (Inbox, Projects, Archive)",
+      "justification": "A deterministic, model-independent storage layer ensures that user notes, tickets, and reminders are preserved across LLM version updates and environment resets.",
+      "research_alignment": "Based on the 'Karpathy LLM Wiki' concept and 'Persistent Memory' requirements for productive AI assistants."
+    }
+  },
+  "feature_set_audit": {
+    "chat_engine": "Supports online Gemini API and offline Ollama/Local models.",
+    "agentic_actions": "Octopus Agent implementation for function calling and tool execution.",
+    "analysis_tools": "Reasoning Sandboxes and Research Tuning for expert-level LLM interaction.",
+    "memory_layer": "Room DB backed history, reasoning cache, and folder foundation."
+  },
+  "syntax_compliance": "Jetpack Compose, Material 3, Kotlin Coroutines, and Room Persistence verified via compilation and Robolectric stress tests."
+}

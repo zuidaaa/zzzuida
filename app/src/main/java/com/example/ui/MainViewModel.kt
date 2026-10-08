@@ -630,6 +630,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 3-Folder Foundation Flows (00_Inbox, 01_Projects, 99_Archive)
+    private val _selectedFolder = MutableStateFlow("00_Inbox")
+    val selectedFolder: StateFlow<String> = _selectedFolder.asStateFlow()
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val currentFolderFiles: StateFlow<List<FolderFileEntity>> = _selectedFolder
+        .flatMapLatest { folder -> repository.getFilesByFolder(folder) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun selectFolder(folderName: String) {
+        _selectedFolder.value = folderName
+        triggerHapticFeedback()
+    }
+
     val inboxFiles: StateFlow<List<FolderFileEntity>> = repository.getFilesByFolder("00_Inbox")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -638,6 +651,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val archiveFiles: StateFlow<List<FolderFileEntity>> = repository.getFilesByFolder("99_Archive")
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allFolders: StateFlow<List<String>> = repository.getAllFolders()
+        .map { list ->
+            val base = listOf("00_Inbox", "01_Projects", "99_Archive")
+            (base + list).distinct().sorted()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf("00_Inbox", "01_Projects", "99_Archive"))
 
     // Flow-based Debounce channels for user inputs & heavy operations
     private val _heavyComputationRequests = MutableSharedFlow<List<DataPoint>>(

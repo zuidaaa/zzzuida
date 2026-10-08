@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.FolderFileEntity
 import com.example.ui.MainViewModel
@@ -37,21 +38,13 @@ fun FolderFoundationScreen(
     uiState: UiState,
     modifier: Modifier = Modifier
 ) {
-    var selectedFolderTab by remember { mutableIntStateOf(0) } // 0: 00_Inbox, 1: 01_Projects, 2: 99_Archive
-    val folders = listOf("00_Inbox", "01_Projects", "99_Archive")
-    
-    val inboxFiles by viewModel.inboxFiles.collectAsStateWithLifecycle()
-    val projectsFiles by viewModel.projectsFiles.collectAsStateWithLifecycle()
-    val archiveFiles by viewModel.archiveFiles.collectAsStateWithLifecycle()
-
-    val currentList = when (selectedFolderTab) {
-        0 -> inboxFiles
-        1 -> projectsFiles
-        else -> archiveFiles
-    }
+    val allFolders by viewModel.allFolders.collectAsStateWithLifecycle()
+    val selectedFolder by viewModel.selectedFolder.collectAsStateWithLifecycle()
+    val currentList by viewModel.currentFolderFiles.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showNewFolderDialog by remember { mutableStateOf(false) }
     var editingFile by remember { mutableStateOf<FolderFileEntity?>(null) }
 
     val filteredList = remember(currentList, searchQuery) {
@@ -90,47 +83,61 @@ fun FolderFoundationScreen(
                     )
                 }
 
-                Button(
-                    onClick = { 
-                        editingFile = null
-                        showCreateDialog = true 
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = LuminousBlue),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("New Entry")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconButton(
+                        onClick = { showNewFolderDialog = true },
+                        modifier = Modifier
+                            .background(GlassCardPanel, RoundedCornerShape(10.dp))
+                            .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
+                    ) {
+                        Icon(Icons.Default.CreateNewFolder, contentDescription = "New Folder", tint = VibrantTeal)
+                    }
+
+                    Button(
+                        onClick = { 
+                            editingFile = null
+                            showCreateDialog = true 
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = LuminousBlue),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("New Entry")
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Folder Tabs
-            TabRow(
-                selectedTabIndex = selectedFolderTab,
+            // Folder Tabs (Scrollable if many)
+            ScrollableTabRow(
+                selectedTabIndex = allFolders.indexOf(selectedFolder).coerceAtLeast(0),
                 containerColor = GlassCardPanel,
                 contentColor = Color.White,
+                edgePadding = 0.dp,
                 indicator = { tabPositions ->
+                    val idx = allFolders.indexOf(selectedFolder).coerceAtLeast(0)
                     TabRowDefaults.Indicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedFolderTab]),
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[idx]),
                         color = LuminousBlue
                     )
                 },
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp)),
+                divider = {}
             ) {
-                folders.forEachIndexed { index, folderName ->
+                allFolders.forEach { folderName ->
                     Tab(
-                        selected = selectedFolderTab == index,
-                        onClick = { selectedFolderTab = index },
+                        selected = selectedFolder == folderName,
+                        onClick = { viewModel.selectFolder(folderName) },
                         text = { 
                             Text(
                                 text = folderName,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
-                                color = if (selectedFolderTab == index) Color.White else TextSecondary
+                                color = if (selectedFolder == folderName) Color.White else TextSecondary
                             ) 
                         }
                     )
@@ -144,7 +151,7 @@ fun FolderFoundationScreen(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search ${folders[selectedFolderTab]}...", color = TextSecondary) },
+                placeholder = { Text("Search $selectedFolder...", color = TextSecondary) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LuminousBlue) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -171,7 +178,7 @@ fun FolderFoundationScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.FolderOpen, contentDescription = null, tint = TextDisabled, modifier = Modifier.size(48.dp))
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("No entries in ${folders[selectedFolderTab]}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                        Text("No entries in $selectedFolder", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             } else {
@@ -182,6 +189,7 @@ fun FolderFoundationScreen(
                     items(filteredList, key = { it.id }) { file ->
                         FolderFileCard(
                             file = file,
+                            allFolders = allFolders,
                             onEdit = {
                                 editingFile = file
                                 showCreateDialog = true
@@ -208,7 +216,8 @@ fun FolderFoundationScreen(
     // Create / Edit Dialog
     if (showCreateDialog) {
         FolderFileDialog(
-            initialFolder = folders[selectedFolderTab],
+            initialFolder = selectedFolder,
+            allFolders = allFolders,
             editingFile = editingFile,
             onDismiss = { showCreateDialog = false },
             onSave = { folderName, title, content, dateStr ->
@@ -223,15 +232,68 @@ fun FolderFoundationScreen(
             }
         )
     }
+
+    // New Folder Dialog
+    if (showNewFolderDialog) {
+        var newFolderName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showNewFolderDialog = false },
+            title = { Text("Create New Folder", color = Color.White) },
+            text = {
+                OutlinedTextField(
+                    value = newFolderName,
+                    onValueChange = { newFolderName = it },
+                    label = { Text("Folder Name") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = LuminousBlue,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newFolderName.isNotBlank()) {
+                            // To "create" a folder in this Room setup, we just insert a dummy file 
+                            // or just wait until a real file is added.
+                            // But we want it to show up in the tabs.
+                            // Let's add a placeholder file.
+                            viewModel.saveFolderFile(
+                                folderName = newFolderName.trim(),
+                                title = ".folder_metadata",
+                                content = "Folder created on ${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())}"
+                            )
+                            viewModel.selectFolder(newFolderName.trim())
+                        }
+                        showNewFolderDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = LuminousBlue)
+                ) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewFolderDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = GlassCardPanel
+        )
+    }
 }
 
 @Composable
 fun FolderFileCard(
     file: FolderFileEntity,
+    allFolders: List<String>,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onMoveToFolder: (String) -> Unit
 ) {
+    var showMoveMenu by remember { mutableStateOf(false) }
+
     GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
@@ -244,20 +306,34 @@ fun FolderFileCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = file.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White)
+                    text = if (file.title == ".folder_metadata") "📁 [System] Folder Placeholder" else file.title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold, 
+                        color = if (file.title == ".folder_metadata") TextDisabled else Color.White
+                    )
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (file.folderName != "99_Archive") {
-                        IconButton(onClick = { onMoveToFolder("99_Archive") }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Archive, contentDescription = "Move to Archive", tint = LuminousYellow, modifier = Modifier.size(16.dp))
+                    Box {
+                        IconButton(onClick = { showMoveMenu = true }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.DriveFileMove, contentDescription = "Move To", tint = VibrantTeal, modifier = Modifier.size(16.dp))
+                        }
+                        DropdownMenu(
+                            expanded = showMoveMenu,
+                            onDismissRequest = { showMoveMenu = false },
+                            modifier = Modifier.background(DarkSurfaceVariant)
+                        ) {
+                            allFolders.filter { it != file.folderName }.forEach { folder ->
+                                DropdownMenuItem(
+                                    text = { Text(folder, color = Color.White, fontSize = 12.sp) },
+                                    onClick = {
+                                        onMoveToFolder(folder)
+                                        showMoveMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
-                    if (file.folderName != "01_Projects") {
-                        IconButton(onClick = { onMoveToFolder("01_Projects") }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Work, contentDescription = "Move to Projects", tint = VibrantTeal, modifier = Modifier.size(16.dp))
-                        }
-                    }
+                    
                     IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit", tint = LuminousBlue, modifier = Modifier.size(16.dp))
                     }
@@ -269,7 +345,7 @@ fun FolderFileCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            if (file.dateString.isNotBlank()) {
+            if (file.dateString.isNotBlank() && file.title != ".folder_metadata") {
                 Text(
                     text = "📅 ${file.dateString}",
                     style = MaterialTheme.typography.labelSmall,
@@ -279,20 +355,31 @@ fun FolderFileCard(
                 Spacer(modifier = Modifier.height(6.dp))
             }
 
-            Text(
-                text = file.content,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
-                maxLines = 4,
-                lineHeight = 18.sp
-            )
+            if (file.title != ".folder_metadata") {
+                Text(
+                    text = file.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    maxLines = 4,
+                    lineHeight = 18.sp
+                )
+            } else {
+                Text(
+                    text = "This is a placeholder entry to keep the folder active.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextDisabled,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FolderFileDialog(
     initialFolder: String,
+    allFolders: List<String>,
     editingFile: FolderFileEntity?,
     onDismiss: () -> Unit,
     onSave: (folderName: String, title: String, content: String, dateString: String) -> Unit
@@ -301,8 +388,6 @@ fun FolderFileDialog(
     var title by remember { mutableStateOf(editingFile?.title ?: "") }
     var content by remember { mutableStateOf(editingFile?.content ?: "") }
     var dateString by remember { mutableStateOf(editingFile?.dateString ?: java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())) }
-
-    val folders = listOf("00_Inbox", "01_Projects", "99_Archive")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -315,8 +400,12 @@ fun FolderFileDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Target Folder:", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    folders.forEach { f ->
+                // Use a FlowRow or similar for dynamic folders
+                androidx.compose.foundation.layout.FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    allFolders.forEach { f ->
                         FilterChip(
                             selected = folderName == f,
                             onClick = { folderName = f },

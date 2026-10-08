@@ -15,6 +15,9 @@ interface FolderFoundationDao {
     @Query("SELECT * FROM folder_foundation WHERE title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%' ORDER BY updatedAt DESC")
     fun searchFolderFiles(query: String): Flow<List<FolderFileEntity>>
 
+    @Query("SELECT DISTINCT folderName FROM folder_foundation ORDER BY folderName ASC")
+    fun getAllFolders(): Flow<List<String>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFile(file: FolderFileEntity)
 

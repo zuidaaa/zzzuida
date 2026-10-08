@@ -1,0 +1,60 @@
+{
+  "project_name": "Tnk Insd th bx...",
+  "status": "Rationalization & Logical Structure Evaluation 2026",
+  "ux_evaluation": {
+    "navigation_logic": {
+      "current_pattern": "Global Edge Panel (Drawer) + Right Sidebar",
+      "rational_rating": "7/10",
+      "logical_grouping": {
+        "interaction_core": ["Cognitive Chat", "Octopus Agent"],
+        "engine_management": ["Ollama & API", "Reasoning Sandboxes", "Research & Tuning"],
+        "data_memory": ["History & Analytics", "3-Folder Foundation"]
+      },
+      "improvement_actions": [
+        {
+          "component": "Bottom Navigation",
+          "action": "Re-introduce hybrid access for 'Chat' and 'Octopus'",
+          "reasoning": "High-frequency interaction should reside in the 'Thumb Zone' (bottom 40%) for ergonomic efficiency."
+        },
+        {
+          "component": "Right Sidebar",
+          "action": "Consolidate 'Menu' and 'Add' buttons",
+          "reasoning": "Standardize the primary entry point to reduce eye-scanning fatigue."
+        }
+      ]
+    },
+    "visual_hierarchy": {
+      "current_style": "Glassmorphism, Absolute Black, Metal Accents",
+      "compliance": "High (Aligns with Spatial AI trends 2026)",
+      "rational_base": "Absolute Black saves battery on OLED (Logical) while Glass effects provide perceived depth for AI reasoning paths."
+    }
+  },
+  "syntax_and_coding_standards": {
+    "patterns_found": ["MVVM", "Unidirectional Data Flow", "StateFlow/collectAsStateWithLifecycle"],
+    "rationality": "High. The implementation uses lifecycle-aware state collection which is the standard for Jetpack Compose stability.",
+    "proposed_upgrades": [
+      "Transition UI state from data class to sealed interface for complex error/loading states.",
+      "Implement K2 compiler optimizations in build.gradle.kts for faster recomposition."
+    ]
+  },
+  "feature_logic": {
+    "3_folder_foundation": {
+      "logic": "Second-brain productivity pattern (Inbox/Projects/Archive).",
+      "durability": "Independent of AI Model changes (Logical for persistent memory)."
+    },
+    "octopus_agent": {
+      "logic": "Action-oriented autonomous execution (Separated from standard chat)."
+    }
+  },
+  "online_market_data_2026": {
+    "key_trends": [
+      "Ambient AI (Quiet background processing)",
+      "Generative UI (Layouts that morph based on task context)",
+      "Glassmorphism 2.0 ( Frosted textures with vibrant atmospheric glows)"
+    ],
+    "ux_best_practices": [
+      "Progressive Disclosure: Hide complex tuning keys behind dropdowns or drill-downs.",
+      "Predictive Navigation: AI suggests the next tab based on user intent."
+    ]
+  }
+}
