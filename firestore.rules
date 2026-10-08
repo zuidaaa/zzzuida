@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global User Lockdown: No top-level public read/write
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // 3. User Profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+
+      // 4. Conversations
+      match /conversations/{conversationId} {
+        allow read, write: if isOwner(userId);
+
+        // 5. Messages
+        match /messages/{messageId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+
+      // 6. Reasoning Cache
+      match /reasoning_cache/{cacheKey} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // 7. Problem Progress
+      match /problem_progress/{problemId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // 8. Agent Skills
+      match /skills/{skillId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // 9. Wiki Entities & Links
+      match /wiki_entities/{entityId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}

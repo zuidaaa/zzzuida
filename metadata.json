@@ -1,0 +1,8 @@
+{
+  "name": "Tnk Insd th bx...",
+  "description": "Offline LLM deep thinking engine with multi-domain interactive problem-solving, D3.js reasoning & token usage telemetry, chain-of-thought debugger, and Room SQLite proof cache.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

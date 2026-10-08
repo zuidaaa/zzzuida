@@ -1,0 +1,151 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Authenticated user profile and metadata",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Google UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation Session",
+      "description": "Metadata for a deep thinking reasoning session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "domain": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastMessagePreview": { "type": "string" },
+        "isBookmarked": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "title", "createdAt"]
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "Individual message in a conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "conversationId": { "type": "string" },
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "thoughtProcess": { "type": "string" },
+        "tokensUsed": { "type": "integer" },
+        "latencyMs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "conversationId", "userId", "role", "content", "createdAt"]
+    },
+    "ReasoningCache": {
+      "title": "Reasoning Proof Cache",
+      "description": "Locally generated or pre-cached reasoning proof traces",
+      "type": "object",
+      "properties": {
+        "cacheKey": { "type": "string" },
+        "userId": { "type": "string" },
+        "promptQuery": { "type": "string" },
+        "modelName": { "type": "string" },
+        "thinkingLevel": { "type": "string" },
+        "answerContent": { "type": "string" },
+        "thoughtProcess": { "type": "string" },
+        "thinkingDurationMs": { "type": "integer" },
+        "thinkingTokens": { "type": "integer" },
+        "domainCategory": { "type": "string" },
+        "cachedAt": { "type": "string", "format": "date-time" },
+        "hitCount": { "type": "integer" },
+        "isFavorite": { "type": "boolean" }
+      },
+      "required": ["cacheKey", "userId", "promptQuery", "answerContent", "cachedAt"]
+    },
+    "ProblemProgress": {
+      "title": "Problem Solving Progress",
+      "description": "User progress on interactive modules",
+      "type": "object",
+      "properties": {
+        "problemId": { "type": "string" },
+        "userId": { "type": "string" },
+        "domain": { "type": "string" },
+        "status": { "type": "string", "enum": ["NOT_STARTED", "IN_PROGRESS", "VERIFIED_SOLVED"] },
+        "unlockedHintsCount": { "type": "integer" },
+        "userSolutionDraft": { "type": "string" },
+        "score": { "type": "integer" },
+        "isBookmarked": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["problemId", "userId", "status", "updatedAt"]
+    },
+    "UserSkill": {
+      "title": "Agent Capability Skill",
+      "description": "Installed or synced skills from skills.sh with toggles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "isEnabled": { "type": "boolean" },
+        "version": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "isEnabled", "updatedAt"]
+    },
+    "WikiEntity": {
+      "title": "Wiki Knowledge Entity",
+      "description": "Knowledge base schema entity linking and reasoning logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "category": { "type": "string" },
+        "entityType": { "type": "string" },
+        "reasoningLogsCount": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Root user profile"
+    },
+    "/users/{userId}/conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "User conversations list"
+    },
+    "/users/{userId}/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a conversation"
+    },
+    "/users/{userId}/reasoning_cache/{cacheKey}": {
+      "schema": "ReasoningCache",
+      "description": "User personal reasoning proof vault"
+    },
+    "/users/{userId}/problem_progress/{problemId}": {
+      "schema": "ProblemProgress",
+      "description": "Interactive module progress tracking"
+    },
+    "/users/{userId}/skills/{skillId}": {
+      "schema": "UserSkill",
+      "description": "User custom agent skills preferences and configurations"
+    },
+    "/users/{userId}/wiki_entities/{entityId}": {
+      "schema": "WikiEntity",
+      "description": "User wiki knowledge base entity linking and updates"
+    }
+  }
+}
