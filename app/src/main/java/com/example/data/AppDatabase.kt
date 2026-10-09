@@ -26,9 +26,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AgentSkillEntity::class,
         SkillSyncLogEntity::class,
         FolderFileEntity::class,
-        ProofOfThoughtEntity::class
+        ProofOfThoughtEntity::class,
+        WorkspaceSnapshotEntity::class,
+        CodeHistoryEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun knowledgeAndBenchmarkDao(): KnowledgeAndBenchmarkDao
     abstract fun folderFoundationDao(): FolderFoundationDao
     abstract fun proofOfThoughtDao(): ProofOfThoughtDao
+    abstract fun workspaceSnapshotDao(): WorkspaceSnapshotDao
 
 
     companion object {
@@ -208,6 +211,51 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration 14 to 15: Edge Multimodal Workspace Snapshots and Code History
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `workspace_snapshots` (
+                        `snapshotId` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `activeFilesJson` TEXT NOT NULL,
+                        `filesCount` INTEGER NOT NULL DEFAULT 0,
+                        `totalWorkspaceSizeBytes` INTEGER NOT NULL DEFAULT 0,
+                        `serializedKvCacheBytes` INTEGER NOT NULL DEFAULT 0,
+                        `vectorEmbeddingChecksum` TEXT NOT NULL DEFAULT '',
+                        `summary` TEXT NOT NULL DEFAULT '',
+                        `targetPlatform` TEXT NOT NULL DEFAULT 'Edge llama.cpp / NPU',
+                        `modelTag` TEXT NOT NULL DEFAULT 'Gemma-4-2B-PEFT-INT4',
+                        `isPinned` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`snapshotId`)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `code_history` (
+                        `id` TEXT NOT NULL,
+                        `snapshotId` TEXT DEFAULT NULL,
+                        `prompt` TEXT NOT NULL,
+                        `language` TEXT NOT NULL DEFAULT 'kotlin',
+                        `generatedCode` TEXT NOT NULL,
+                        `refinementIteration` INTEGER NOT NULL DEFAULT 1,
+                        `toolActionJson` TEXT NOT NULL DEFAULT '{}',
+                        `sandboxExitCode` INTEGER NOT NULL DEFAULT 0,
+                        `sandboxOutput` TEXT NOT NULL DEFAULT '',
+                        `sandboxExecutionMs` INTEGER NOT NULL DEFAULT 0,
+                        `astValidationPassed` INTEGER NOT NULL DEFAULT 1,
+                        `astViolationReason` TEXT DEFAULT NULL,
+                        `modelQuantization` TEXT NOT NULL DEFAULT 'INT4',
+                        `executionTarget` TEXT NOT NULL DEFAULT 'EDGE_NPU',
+                        `hasVisionInput` INTEGER NOT NULL DEFAULT 0,
+                        `visionVectorDim` INTEGER NOT NULL DEFAULT 0,
+                        `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -215,7 +263,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gemini_deepthink_db"
                 )
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_13_14)
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_13_14, MIGRATION_14_15)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
                 INSTANCE = instance

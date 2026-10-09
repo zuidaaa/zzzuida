@@ -120,6 +120,13 @@ fun UnifiedEnginesScreen(
                     onClick = { selectedSubTab = 7 },
                     testTag = "sub_tab_skills_hub"
                 )
+                EngineSubTabItem(
+                    title = "🤖 Edge Vibe-Coder",
+                    icon = Icons.Default.Code,
+                    isSelected = selectedSubTab == 8,
+                    onClick = { selectedSubTab = 8 },
+                    testTag = "sub_tab_edge_coding_agent"
+                )
             }
         }
 
@@ -161,6 +168,10 @@ fun UnifiedEnginesScreen(
                     onClose = { selectedSubTab = 0 }
                 )
                 7 -> SkillsHubScreen(
+                    viewModel = viewModel,
+                    uiState = uiState
+                )
+                8 -> EdgeCodingAgentScreen(
                     viewModel = viewModel,
                     uiState = uiState
                 )

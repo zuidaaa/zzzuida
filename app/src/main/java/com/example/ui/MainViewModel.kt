@@ -427,6 +427,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val octopusEngine = OctopusAgentEngine(application, database)
     val workspaceManager = com.example.engine.workspace.GoogleWorkspaceManager(application)
     val skillsManager = com.example.engine.skills.SkillsManager(application, viewModelScope)
+    val edgeCodingEngine = com.example.engine.edge.EdgeMultimodalCodingEngine(application, database)
+    val workspaceSnapshotRepository = com.example.data.WorkspaceSnapshotRepository(database.workspaceSnapshotDao())
 
     private val _gmailMessages = MutableStateFlow<List<com.example.engine.workspace.GmailMessageItem>>(emptyList())
     val gmailMessages: StateFlow<List<com.example.engine.workspace.GmailMessageItem>> = _gmailMessages.asStateFlow()
@@ -771,6 +773,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 PipelineStage(1, "Parallel Draft Generation (Logic vs Code)", "deepseek-r1:14b & qwen2.5-coder:14b"),
                 PipelineStage(2, "Cross-Critique & Mutual Adversarial Review", "Logic ↔ Code Reviewers"),
                 PipelineStage(3, "Chief Architect Synthesis & Clean Code Generation", "qwen2.5:14b / llama3.3:70b Judge")
+            )
+        ),
+        AutonomousPipeline(
+            id = "pipeline-edge-multimodal-coder",
+            title = "Edge-AI Multimodal Coding Agent (llama.cpp / Gemma-4-2B PEFT)",
+            category = "Edge LLM Engineering",
+            isZeroToken = true,
+            targetPlatform = "On-Device Exynos NPU + llama.cpp INT4/INT3 + LiteViT5",
+            description = "4-Phase Edge Pipeline: Phase 0 (Gemma INT4/INT3 + Isolated Sandbox), Phase 1 (LiteViT5 Vision-to-Code v_vision), Phase 2 (Telemetry & AST Safety), Phase 3 (Speech <-> Code feedback loop).",
+            stages = listOf(
+                PipelineStage(1, "Phase 2: Adaptive Telemetry & AST Safety Validator", "Hardware Scorer & AST Filter"),
+                PipelineStage(2, "Phase 1: LiteViT5 Vision Encoder -> MLP Projection Adapter", "NPU Vision Tensor v_vision"),
+                PipelineStage(3, "Phase 3: Whisper Audio Stream & Unified Prompt Construction", "Low-Latency STT Agent"),
+                PipelineStage(4, "Phase 0: Gemma-4-2B llama.cpp Tool Calling & Sandbox Execution", "Isolated JNI/Rust Shell Runner")
             )
         )
     )
