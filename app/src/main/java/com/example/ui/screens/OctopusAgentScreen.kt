@@ -224,6 +224,27 @@ private fun ExecutorSection(viewModel: MainViewModel, uiState: UiState, cachedRe
             }
         }
 
+        // 3. Optional On-Demand Quick Select Circular Menu
+        item {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                QuickSelectCircularMenu(
+                    onActionSelected = { index ->
+                        // Quick switch tabs or trigger actions
+                        when (index) {
+                            0 -> viewModel.setActiveTab(0)
+                            1 -> viewModel.setActiveTab(1)
+                            2 -> viewModel.setActiveTab(2)
+                            3 -> viewModel.setActiveTab(3)
+                            else -> {}
+                        }
+                    }
+                )
+            }
+        }
+
         // 4. Component: Tilted Cached Proofs Stack
         item {
             Text(
@@ -362,15 +383,15 @@ private fun TiltedCachedProofsStack(cachedReasoning: List<com.example.data.Reaso
         if (cachedReasoning.isEmpty()) {
             Text("No cached proofs found", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
         } else {
-            // Show up to 3 cards tilted
+            // Show up to 3 cards tilted at 4deg and offset 8px
             val displayList = cachedReasoning.take(3).reversed()
             displayList.forEachIndexed { index, proof ->
                 val tiltFactor = (displayList.size - 1 - index)
                 CachedProofCard(
                     title = proof.promptQuery,
                     offset = (tiltFactor * 8).dp,
-                    rotation = (tiltFactor * -2f),
-                    alpha = 1.0f - (tiltFactor * 0.3f)
+                    rotation = (tiltFactor * -4f), // 4 deg tilt per design specification
+                    alpha = 0.6f + ((1.0f - 0.6f) * (1f - tiltFactor * 0.3f))
                 )
             }
         }
@@ -388,7 +409,7 @@ private fun CachedProofCard(title: String, offset: androidx.compose.ui.unit.Dp, 
                 translationX = offset.toPx()
                 translationY = (offset.toPx() / 2)
             },
-        color = Color(0xFF161B22).copy(alpha = alpha * 0.7f),
+        color = Color(0xFF161B22).copy(alpha = 0.6f), // Card transparency 0.6 as specified
         shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle.copy(alpha = alpha))
     ) {
