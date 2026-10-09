@@ -245,68 +245,12 @@ class AdaptiveEdgeOrchestrator(
 
     /**
      * Code Generation Safety & Pre-Execution AST Validator (Phase 2 - Point 3).
-     * Deep Abstract Syntax Tree & Security inspection.
+     * Delegates to centralized [EdgeAstSafetyValidator].
      */
     fun validateCodeSafety(code: String, language: String = "kotlin"): AstValidationReport {
-        val violations = mutableListOf<String>()
-        val warnings = mutableListOf<String>()
-
-        // 1. Privileged & Dangerous API Inspection
-        val privilegedCalls = mapOf(
-            "Runtime.getRuntime().exec" to "Privileged process execution attempt",
-            "ProcessBuilder(" to "Unauthorized sub-process fork",
-            "System.exit" to "Abrupt VM termination call",
-            "os.system(" to "Unrestricted OS shell command injection",
-            "subprocess.Popen(" to "Privileged shell spawn",
-            "shutil.rmtree('/'" to "Destructive root filesystem modification",
-            "open('/etc/" to "Privileged system file access",
-            "eval(" to "Unsafe dynamic script evaluation",
-            "exec(" to "Unsafe dynamic arbitrary code execution"
-        )
-
-        for ((call, reason) in privilegedCalls) {
-            if (code.contains(call)) {
-                violations.add("AST Security Violation: Disallowed privileged call '$call' - $reason")
-            }
-        }
-
-        // 2. Delimiter & Structural Bracket Syntax Checking
-        var paren = 0
-        var brace = 0
-        var bracket = 0
-        for (c in code) {
-            when (c) {
-                '(' -> paren++
-                ')' -> paren--
-                '{' -> brace++
-                '}' -> brace--
-                '[' -> bracket++
-                ']' -> bracket--
-            }
-            if (paren < 0 || brace < 0 || bracket < 0) {
-                violations.add("AST Syntax Violation: Negative delimiter balance detected")
-                break
-            }
-        }
-        if (paren != 0 || brace != 0 || bracket != 0) {
-            violations.add("AST Syntax Violation: Incomplete delimiter closure (Paren=$paren, Brace=$brace, Bracket=$bracket)")
-        }
-
-        // 3. Language-Specific Structure Heuristics
-        if (language.equals("kotlin", ignoreCase = true)) {
-            if (!code.contains("fun ") && !code.contains("class ") && !code.contains("val ") && !code.contains("package ")) {
-                warnings.add("Kotlin Code Structure Warning: No function or class declarations found.")
-            }
-        }
-
-        return AstValidationReport(
-            isValid = violations.isEmpty(),
-            violations = violations,
-            warnings = warnings,
-            astNodeCount = code.split("\\s+".toRegex()).size,
-            checkedLanguage = language
-        )
+        return EdgeAstSafetyValidator.validate(code, language)
     }
+
 
     private fun calculateStateHash(prompt: String, context: String): String {
         val md = MessageDigest.getInstance("SHA-256")
@@ -360,13 +304,3 @@ class AdaptiveEdgeOrchestrator(
     }
 }
 
-/**
- * Report containing AST validation results.
- */
-data class AstValidationReport(
-    val isValid: Boolean,
-    val violations: List<String>,
-    val warnings: List<String>,
-    val astNodeCount: Int,
-    val checkedLanguage: String
-)

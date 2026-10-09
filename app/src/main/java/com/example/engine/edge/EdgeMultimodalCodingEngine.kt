@@ -2,352 +2,119 @@ package com.example.engine.edge
 
 import android.content.Context
 import android.graphics.Bitmap
-import com.example.engine.SamsungCpuOptimizer
+import com.example.data.AppDatabase
+import com.example.data.CodeHistoryEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
-import java.security.MessageDigest
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.UUID
 
 /**
  * Edge-AI Multimodal Coding Agent Pipeline Engine
  *
- * Implements:
- * - Phase 0: Fundament & Setup (llama.cpp / Gemma-4-2B PEFT INT4/INT3, Tool-Calling, Sandbox-Execution, Text->Code->Test Loop)
- * - Phase 1: Multimodal Integration (LiteViT5 Vision Feature Vectors v_vision, Projection Adapter MLP, Unified Context Construction)
- * - Phase 2: Adaptive Edge Orchestration (Hardware Telemetry Monitoring, Complexity Scorer, Cloud Bridge, AST Pre-Execution Validator)
- * - Phase 3: Real-Time Multimodal Synthesis (Whisper STT, Zero-Shot Multimodal Prompting, Iterative Debugging Loop: Listen -> Generate -> Test -> Refine)
- * - Workspace Snapshots & KV-Cache Serialization
+ * Coordinates modular fragments:
+ * - Fragment 1: [EdgeAstSafetyValidator] - Pre-Execution AST security & syntax analysis
+ * - Fragment 2: [EdgeSandboxExecutor] - Isolated file operations & path traversal security
+ * - Fragment 3: [EdgeVisionProcessor] & [EdgeSpeechProcessor] - LiteViT5 & Whisper multimodal flows
+ * - Fragment 4: [EdgeStateManager] - KV-Cache memory snapshots & Room SQLite persistence
+ * - Fragment 5: [AdaptiveEdgeOrchestrator] - Hardware telemetry, complexity scoring & cloud offloading
  */
 class EdgeMultimodalCodingEngine(
     private val context: Context,
-    private val database: com.example.data.AppDatabase? = null
+    private val database: AppDatabase? = null
 ) {
-    private val snapshotDao = database?.workspaceSnapshotDao()
-
-    // Virtual Sandbox File System (in app-private storage for isolation)
+    // Sandbox Directory in app-private storage
     private val sandboxDir: File by lazy {
         File(context.filesDir, "edge_sandbox").apply { if (!exists()) mkdirs() }
     }
 
-    // Active Virtual Workspace Files
-    private val workspaceFiles = mutableMapOf<String, String>()
+    // Fragment 2: Sandbox Executor
+    val sandboxExecutor = EdgeSandboxExecutor(sandboxDir)
 
-    // Memory KV-Cache & Snapshots
-    private val snapshots = mutableListOf<WorkspaceSnapshot>()
+    // Fragment 4: State & Persistence Manager
+    val stateManager = EdgeStateManager(
+        sandboxExecutor = sandboxExecutor,
+        snapshotDao = database?.workspaceSnapshotDao()
+    )
 
-    // State Management: Workspace Vectorization Service (Design Aspect 2)
-    val vectorizationService = WorkspaceVectorizationService()
-    private val fileEmbeddings = mutableMapOf<String, FileVectorEmbedding>()
+    // Vectorization Service (Design Aspect 2)
+    val vectorizationService get() = stateManager.vectorizationService
 
-    // Phase 2: Adaptive Edge Orchestration (Telemetry, Routing & Cloud Bridge)
+    // Phase 2: Adaptive Edge Orchestrator
     val orchestrator = AdaptiveEdgeOrchestrator(vectorizationService)
 
-    // Execution Events Flow
+    // Pipeline Events Stream
     private val _pipelineEvents = MutableStateFlow<List<EdgePipelineEvent>>(emptyList())
     val pipelineEvents: StateFlow<List<EdgePipelineEvent>> = _pipelineEvents.asStateFlow()
 
-    // Telemetry Flow
+    // Telemetry State Stream
     private val _telemetryState = MutableStateFlow(
-        EdgeTelemetryState(
-            cpuUtilizationPercent = 18.5f,
-            thermalStatus = "NOMINAL",
-            batteryTemperatureCelsius = 31.2f,
-            availableRamMb = 6400,
-            npuThermalHeadroom = 88.0f,
-            complexityScore = 0.25f,
-            recommendedTarget = ExecutionTarget.EDGE_NPU
-        )
+        orchestrator.monitorHardwareStatus(0.25f)
     )
     val telemetryState: StateFlow<EdgeTelemetryState> = _telemetryState.asStateFlow()
 
-    init {
-        // Initialize default workspace with starter files
-        workspaceFiles["main.py"] = """
-            # Edge Agent Sandbox - Initial Entrypoint
-            def calculate_fibonacci(n: int) -> int:
-                if n <= 1:
-                    return n
-                a, b = 0, 1
-                for _ in range(2, n + 1):
-                    a, b = b, a + b
-                return b
-
-            if __name__ == '__main__':
-                print(f"Fibonacci(10) = {calculate_fibonacci(10)}")
-        """.trimIndent()
-
-        workspaceFiles["test_main.py"] = """
-            # AST & Unit Test Suite
-            import unittest
-            from main import calculate_fibonacci
-
-            class TestFibonacci(unittest.TestCase):
-                def test_base_cases(self):
-                    self.assertEqual(calculate_fibonacci(0), 0)
-                    self.assertEqual(calculate_fibonacci(1), 1)
-
-                def test_ten(self):
-                    self.assertEqual(calculate_fibonacci(10), 55)
-
-            if __name__ == '__main__':
-                unittest.main()
-        """.trimIndent()
-    }
-
     /**
-     * Updates Hardware Telemetry based on Exynos 2600 CPU Profile and System State
+     * Refreshes hardware telemetry metrics.
      */
     fun refreshTelemetry(currentTaskComplexity: Float = 0.35f): EdgeTelemetryState {
-        val cpuProfile = SamsungCpuOptimizer.detectHardwareProfile()
-        val runtime = Runtime.getRuntime()
-        val freeMemoryMb = (runtime.freeMemory() + (runtime.maxMemory() - runtime.totalMemory())) / (1024 * 1024)
-
-        val target = when {
-            currentTaskComplexity > 0.85f -> ExecutionTarget.CLOUD_FALLBACK
-            cpuProfile.npuTops >= 30 -> ExecutionTarget.EDGE_NPU
-            else -> ExecutionTarget.EDGE_CPU_SVE2
-        }
-
-        val state = EdgeTelemetryState(
-            cpuUtilizationPercent = (20f + (currentTaskComplexity * 45f)).coerceIn(10f, 98f),
-            thermalStatus = if (currentTaskComplexity > 0.8f) "FAIR" else "NOMINAL",
-            batteryTemperatureCelsius = 30f + (currentTaskComplexity * 4.2f),
-            availableRamMb = freeMemoryMb.coerceAtLeast(1024),
-            npuThermalHeadroom = (95f - (currentTaskComplexity * 25f)).coerceIn(10f, 100f),
-            complexityScore = currentTaskComplexity,
-            recommendedTarget = target
-        )
+        val state = orchestrator.monitorHardwareStatus(currentTaskComplexity)
         _telemetryState.value = state
         return state
     }
 
     /**
-     * Phase 0 & 2: AST (Abstract Syntax Tree) Pre-Execution Validator.
-     * Prevents dangerous system calls, shell injection, or syntax anomalies before sandbox execution.
+     * Pre-execution AST safety & delimiter syntax validation.
      */
     fun validateCodeAst(code: String, language: String = "python"): Pair<Boolean, String?> {
-        val dangerousPatterns = listOf(
-            "os.system(", "subprocess.Popen(", "shutil.rmtree('/'", "open('/etc/",
-            "__import__('os')", "eval(", "exec(", "System.exit", "Runtime.getRuntime().exec"
-        )
-        for (pattern in dangerousPatterns) {
-            if (code.contains(pattern)) {
-                return false to "AST Security Violation: Disallowed privileged call '$pattern'"
-            }
-        }
-
-        // Check bracket / parenthesis balance
-        var parenBalance = 0
-        var braceBalance = 0
-        var bracketBalance = 0
-        for (char in code) {
-            when (char) {
-                '(' -> parenBalance++
-                ')' -> parenBalance--
-                '{' -> braceBalance++
-                '}' -> braceBalance--
-                '[' -> bracketBalance++
-                ']' -> bracketBalance--
-            }
-            if (parenBalance < 0 || braceBalance < 0 || bracketBalance < 0) {
-                return false to "AST Syntax Violation: Unbalanced delimiter syntax detected"
-            }
-        }
-        if (parenBalance != 0 || braceBalance != 0 || bracketBalance != 0) {
-            return false to "AST Syntax Violation: Incomplete delimiter closure"
-        }
-
-        return true to null
+        return EdgeAstSafetyValidator.quickCheck(code, language)
     }
 
     /**
-     * Phase 0: Tool-Calling Structured JSON Parser & Executor.
-     * Handles {"action": "write_file", "path": "...", "content": "..."}
+     * Executes structured sandbox tool commands (write_file, read_file, execute_code, run_tests).
      */
-    suspend fun executeToolAction(jsonCommand: String): SandboxExecutionResult = withContext(Dispatchers.IO) {
-        val startTime = System.currentTimeMillis()
-        try {
-            val json = JSONObject(jsonCommand)
-            val action = json.optString("action", "unknown")
-            val path = json.optString("path", "workspace.tmp")
-            val content = json.optString("content", "")
-
-            when (action) {
-                "write_file" -> {
-                    // Perform AST validation prior to write
-                    val (isValid, errorReason) = validateCodeAst(content)
-                    if (!isValid) {
-                        return@withContext SandboxExecutionResult(
-                            action = action,
-                            isSuccess = false,
-                            exitCode = 1,
-                            output = errorReason ?: "Validation failure",
-                            durationMs = System.currentTimeMillis() - startTime,
-                            astValidationPassed = false,
-                            astViolationReason = errorReason
-                        )
-                    }
-
-                    workspaceFiles[path] = content
-                    val targetFile = File(sandboxDir, path)
-                    targetFile.parentFile?.mkdirs()
-                    targetFile.writeText(content)
-
-                    SandboxExecutionResult(
-                        action = action,
-                        isSuccess = true,
-                        exitCode = 0,
-                        output = "Successfully wrote ${content.length} chars to $path [AST Verified]",
-                        durationMs = System.currentTimeMillis() - startTime,
-                        memoryUsageKb = 420
-                    )
-                }
-
-                "read_file" -> {
-                    val fileContent = workspaceFiles[path] ?: run {
-                        val file = File(sandboxDir, path)
-                        if (file.exists()) file.readText() else null
-                    }
-                    if (fileContent != null) {
-                        SandboxExecutionResult(
-                            action = action,
-                            isSuccess = true,
-                            exitCode = 0,
-                            output = fileContent,
-                            durationMs = System.currentTimeMillis() - startTime,
-                            memoryUsageKb = 120
-                        )
-                    } else {
-                        SandboxExecutionResult(
-                            action = action,
-                            isSuccess = false,
-                            exitCode = 2,
-                            output = "File not found: $path",
-                            durationMs = System.currentTimeMillis() - startTime
-                        )
-                    }
-                }
-
-                "execute_code", "run_tests" -> {
-                    val fileContent = workspaceFiles[path] ?: ""
-                    val (isValid, errorReason) = validateCodeAst(fileContent)
-                    if (!isValid) {
-                        return@withContext SandboxExecutionResult(
-                            action = action,
-                            isSuccess = false,
-                            exitCode = 1,
-                            output = "Pre-Execution blocked: $errorReason",
-                            durationMs = System.currentTimeMillis() - startTime,
-                            astValidationPassed = false,
-                            astViolationReason = errorReason
-                        )
-                    }
-
-                    // Simulated secure isolated sandbox execution output
-                    val simulatedOutput = if (action == "run_tests") {
-                        """
-                        test_base_cases (test_main.TestFibonacci) ... ok
-                        test_ten (test_main.TestFibonacci) ... ok
-                        ----------------------------------------------------------------------
-                        Ran 2 tests in 0.004s
-
-                        OK (Exynos Cortex-X Sandbox Verified)
-                        """.trimIndent()
-                    } else {
-                        "Fibonacci(10) = 55\n[Process completed with exit code 0 in 1.8ms]"
-                    }
-
-                    SandboxExecutionResult(
-                        action = action,
-                        isSuccess = true,
-                        exitCode = 0,
-                        output = simulatedOutput,
-                        durationMs = System.currentTimeMillis() - startTime,
-                        memoryUsageKb = 1840
-                    )
-                }
-
-                else -> {
-                    SandboxExecutionResult(
-                        action = action,
-                        isSuccess = false,
-                        exitCode = 127,
-                        output = "Unknown action command: $action",
-                        durationMs = System.currentTimeMillis() - startTime
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            SandboxExecutionResult(
-                action = "error",
-                isSuccess = false,
-                exitCode = -1,
-                output = "Tool execution failure: ${e.message}",
-                durationMs = System.currentTimeMillis() - startTime
-            )
-        }
+    suspend fun executeToolAction(jsonCommand: String): SandboxExecutionResult {
+        return sandboxExecutor.executeToolAction(jsonCommand, stateManager.getMutableWorkspaceFiles())
     }
 
     /**
-     * Phase 1: Mobile LiteViT5 Vision Feature Vector Extractor
-     * Transforms an input UI Mockup or Image into a structured 512-dimensional vector (v_vision).
+     * Extracts LiteViT5 512-dim visual features from UI mockup.
      */
-    suspend fun extractVisionFeatures(bitmap: Bitmap?): VisionFeatureVector = withContext(Dispatchers.Default) {
-        val startTime = System.currentTimeMillis()
-        delay(45) // Simulate high-speed NPU tensor extraction
-
-        val dim = 512
-        val vector = FloatArray(dim) { i ->
-            val angle = i * 0.1f
-            kotlin.math.sin(angle) * 0.5f + kotlin.math.cos(angle * 0.5f) * 0.25f
-        }
-
-        val detectedElements = listOf(
-            "TopAppBar(title='Dashboard')",
-            "Card(elevation=4dp, rounded=16dp)",
-            "LazyColumn(itemCount=5)",
-            "FloatingActionButton(icon='Add')",
-            "Material3Theme(DynamicLightColorScheme)"
-        )
-
-        val boundingBoxes = listOf(
-            "[0, 0, 1080, 120] -> Header",
-            "[40, 160, 1040, 480] -> HeroCard",
-            "[40, 520, 1040, 1800] -> FeedList"
-        )
-
-        VisionFeatureVector(
-            dimension = dim,
-            features = vector,
-            detectedUiElements = detectedElements,
-            layoutBoundingBoxes = boundingBoxes,
-            extractionLatencyMs = System.currentTimeMillis() - startTime
-        )
+    suspend fun extractVisionFeatures(bitmap: Bitmap?): VisionFeatureVector {
+        return EdgeVisionProcessor.extractVisionFeatures(bitmap)
     }
 
     /**
-     * Phase 1: Projection Adapter (MLP)
-     * Maps the 512-dim v_vision tensor into the token embedding dimension of Gemma-4-2B (2048 dims).
+     * Projects visual vector into LLM token embedding space.
      */
     fun projectVisionIntoTextSpace(visionVector: VisionFeatureVector): String {
-        val hash = visionVector.features.take(8).joinToString("") { "%02x".format((it * 100).toInt() and 0xFF) }
-        return "<|vision_token_embedding|>[dim=2048, mlp_adapter=gelu, projection_hash=0x$hash]<|vision_end|>"
+        return EdgeVisionProcessor.projectVisionIntoTextSpace(visionVector)
     }
 
+    // Workspace & Snapshot Accessors
+    fun getWorkspaceFiles(): Map<String, String> = stateManager.getWorkspaceFiles()
+
+    fun setFileContent(fileName: String, content: String) = stateManager.setFileContent(fileName, content)
+
+    fun createWorkspaceSnapshot(summary: String): WorkspaceSnapshot = stateManager.createSnapshot(summary)
+
+    fun restoreWorkspaceSnapshot(files: Map<String, String>, summary: String): Boolean = stateManager.restoreSnapshot(files)
+
+    fun getSnapshots(): List<WorkspaceSnapshot> = stateManager.getSnapshots()
+
+    suspend fun refreshWorkspaceEmbeddings(): Map<String, FileVectorEmbedding> = stateManager.refreshWorkspaceEmbeddings()
+
+    fun getFileEmbeddings(): Map<String, FileVectorEmbedding> = stateManager.getFileEmbeddings()
+
+    suspend fun searchWorkspaceSemantics(query: String, topK: Int = 3): List<WorkspaceSemanticSearchResult> =
+        stateManager.searchWorkspaceSemantics(query, topK)
+
     /**
-     * Full End-to-End Multimodal Coding Pipeline
-     * Iterates through Phase 0 -> Phase 1 -> Phase 2 -> Phase 3 -> Refinement Loop.
+     * Executes the complete Multimodal Coding Loop (Phase 0 -> Phase 1 -> Phase 2 -> Phase 3 -> Persist).
      */
     suspend fun runFullMultimodalCodingPipeline(
         userPrompt: String,
@@ -364,7 +131,9 @@ class EdgeMultimodalCodingEngine(
             onEvent(event)
         }
 
-        // Step 1: Phase 2 Adaptive Telemetry & Confidence Scoring (Hardware-Aware Routing)
+        val workspaceFiles = stateManager.getWorkspaceFiles()
+
+        // Step 1: Telemetry & Hardware-Aware LLM Confidence Routing (Phase 2)
         val orchestratorDecision = orchestrator.evaluateRouting(
             prompt = userPrompt,
             codeContext = workspaceFiles.values.joinToString("\n"),
@@ -382,9 +151,9 @@ class EdgeMultimodalCodingEngine(
                 payloadPreview = "Target: ${orchestratorDecision.selectedTarget.displayName} | StateHash: ${orchestratorDecision.stateConsistencyHash}"
             )
         )
-        delay(60)
+        delay(50)
 
-        // Step 2: Phase 1 Vision Encoding (LiteViT5)
+        // Step 2: Vision Encoding & MLP Adapter Projection (Phase 1)
         val visionVector = extractVisionFeatures(mockupBitmap)
         val projectedVisionTokens = projectVisionIntoTextSpace(visionVector)
         emit(
@@ -396,24 +165,21 @@ class EdgeMultimodalCodingEngine(
                 payloadPreview = projectedVisionTokens
             )
         )
-        delay(60)
+        delay(50)
 
-        // Step 3: Phase 3 Voice Integration & Workspace Semantic Vectorization (Design Aspect 2)
-        // Instead of dumping entire codebase, retrieve compact vector embeddings of relevant files
-        refreshWorkspaceEmbeddings()
-        val semanticResults = vectorizationService.searchRelevantFiles(
+        // Step 3: Audio Stream & Workspace Vectorization Context (Phase 3 & Design Aspect 2)
+        stateManager.refreshWorkspaceEmbeddings()
+        val semanticResults = stateManager.searchWorkspaceSemantics(
             query = userPrompt + if (!voiceTranscript.isNullOrBlank()) " $voiceTranscript" else "",
-            fileEmbeddings = fileEmbeddings.values.toList(),
             topK = 2
         )
         val vectorizedContext = vectorizationService.buildVectorizedContextString(semanticResults)
+        val audioDirective = EdgeSpeechProcessor.formatVoiceInstruction(voiceTranscript)
 
         val effectivePrompt = buildString {
             appendLine(userPrompt)
-            if (!voiceTranscript.isNullOrBlank()) {
-                appendLine("[Audio Whisper Stream: \"$voiceTranscript\"]")
-            }
-            appendLine(vectorizedContext)
+            if (audioDirective.isNotBlank()) appendLine(audioDirective)
+            if (vectorizedContext.isNotBlank()) appendLine(vectorizedContext)
         }.trimEnd()
 
         emit(
@@ -425,9 +191,9 @@ class EdgeMultimodalCodingEngine(
                 payloadPreview = effectivePrompt.take(160) + "..."
             )
         )
-        delay(60)
+        delay(50)
 
-        // Step 4: Model Inference (Edge NPU vs Cloud Gateway Offloading based on Orchestrator Decision)
+        // Step 4: Model Inference (Edge NPU vs Cloud Gateway Offloading)
         val generatedCode: String
         val executionTargetUsed: String
         if (orchestratorDecision.selectedTarget == ExecutionTarget.CLOUD_FALLBACK) {
@@ -441,7 +207,7 @@ class EdgeMultimodalCodingEngine(
             )
             val cloudResult = orchestrator.executeCloudBridge(
                 prompt = effectivePrompt,
-                workspaceFiles = workspaceFiles.toMap(),
+                workspaceFiles = workspaceFiles,
                 stateConsistencyHash = orchestratorDecision.stateConsistencyHash,
                 vectorizedMatches = semanticResults
             )
@@ -465,7 +231,7 @@ class EdgeMultimodalCodingEngine(
                     isRunning = true
                 )
             )
-            delay(120)
+            delay(100)
 
             generatedCode = """
                 package com.example.ui.components
@@ -504,8 +270,8 @@ class EdgeMultimodalCodingEngine(
             executionTargetUsed = orchestratorDecision.selectedTarget.name
         }
 
-        // Step 5: Phase 0 Tool Calling & Phase 2 AST Pre-Execution Validator
-        val astReport = orchestrator.validateCodeSafety(generatedCode, language = "kotlin")
+        // Step 5: Phase 0 Tool Calling & AST Pre-Execution Validator
+        val astReport = EdgeAstSafetyValidator.validate(generatedCode, language = "kotlin")
         val toolJson = JSONObject().apply {
             put("action", "write_file")
             put("path", "EdgeGeneratedDashboard.kt")
@@ -523,9 +289,9 @@ class EdgeMultimodalCodingEngine(
                 payloadPreview = if (astReport.violations.isNotEmpty()) astReport.violations.joinToString("; ") else executionResult.output
             )
         )
-        delay(60)
+        delay(50)
 
-        // Step 6: Phase 0 / 3 Refinement & Verification Loop (Listen -> Generate -> Test -> Refine)
+        // Step 6: Closed-Loop Refinement & Testing
         val testJson = JSONObject().apply {
             put("action", "run_tests")
             put("path", "EdgeGeneratedDashboard.kt")
@@ -542,136 +308,32 @@ class EdgeMultimodalCodingEngine(
             )
         )
 
-        // Step 7: Create Workspace Snapshot to preserve memory & KV-Cache
+        // Step 7: Create Workspace Snapshot
         val snapshot = createWorkspaceSnapshot("Snapshot after multimodal code synthesis for: ${userPrompt.take(30)}")
 
-        // Step 8: Persist Code Generation History in Room Database
-        withContext(Dispatchers.IO) {
-            snapshotDao?.insertCodeHistory(
-                com.example.data.CodeHistoryEntity(
-                    id = "code-" + UUID.randomUUID().toString().take(8),
-                    snapshotId = snapshot.snapshotId,
-                    prompt = userPrompt,
-                    language = "kotlin",
-                    generatedCode = generatedCode,
-                    refinementIteration = 1,
-                    toolActionJson = toolJson,
-                    sandboxExitCode = testResult.exitCode,
-                    sandboxOutput = testResult.output,
-                    sandboxExecutionMs = testResult.durationMs,
-                    astValidationPassed = astReport.isValid && executionResult.astValidationPassed,
-                    astViolationReason = if (astReport.violations.isNotEmpty()) astReport.violations.first() else executionResult.astViolationReason,
-                    modelQuantization = quantization.label,
-                    executionTarget = executionTargetUsed,
-                    hasVisionInput = mockupBitmap != null,
-                    visionVectorDim = if (mockupBitmap != null) 512 else 0,
-                    createdAt = System.currentTimeMillis()
-                )
+        // Step 8: Persist Code History
+        stateManager.recordCodeHistory(
+            CodeHistoryEntity(
+                id = "code-" + UUID.randomUUID().toString().take(8),
+                snapshotId = snapshot.snapshotId,
+                prompt = userPrompt,
+                language = "kotlin",
+                generatedCode = generatedCode,
+                refinementIteration = 1,
+                toolActionJson = toolJson,
+                sandboxExitCode = testResult.exitCode,
+                sandboxOutput = testResult.output,
+                sandboxExecutionMs = testResult.durationMs,
+                astValidationPassed = astReport.isValid && executionResult.astValidationPassed,
+                astViolationReason = if (astReport.violations.isNotEmpty()) astReport.violations.first() else executionResult.astViolationReason,
+                modelQuantization = quantization.label,
+                executionTarget = executionTargetUsed,
+                hasVisionInput = mockupBitmap != null,
+                visionVectorDim = if (mockupBitmap != null) 512 else 0,
+                createdAt = System.currentTimeMillis()
             )
-        }
+        )
 
         generatedCode
-    }
-
-    /**
-     * Serializes Workspace files & KV-Cache state to guarantee zero state loss.
-     */
-    fun createWorkspaceSnapshot(summary: String): WorkspaceSnapshot {
-        val snapshotId = "snap-" + UUID.randomUUID().toString().take(8)
-        val combinedContent = workspaceFiles.values.joinToString("\n")
-        val md = MessageDigest.getInstance("MD5")
-        val hash = md.digest(combinedContent.toByteArray()).joinToString("") { "%02x".format(it) }
-
-        val snapshot = WorkspaceSnapshot(
-            snapshotId = snapshotId,
-            timestamp = System.currentTimeMillis(),
-            activeFiles = workspaceFiles.toMap(),
-            serializedKvCacheBytes = (workspaceFiles.size * 18432L) + 65536L,
-            vectorEmbeddingChecksum = hash,
-            summary = summary
-        )
-        snapshots.add(snapshot)
-
-        // Asynchronously persist to Room database
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-            val jsonMap = JSONObject()
-            workspaceFiles.forEach { (path, content) -> jsonMap.put(path, content) }
-            val totalBytes = workspaceFiles.values.sumOf { it.toByteArray().size.toLong() }
-            snapshotDao?.insertSnapshot(
-                com.example.data.WorkspaceSnapshotEntity(
-                    snapshotId = snapshotId,
-                    timestamp = snapshot.timestamp,
-                    activeFilesJson = jsonMap.toString(),
-                    filesCount = workspaceFiles.size,
-                    totalWorkspaceSizeBytes = totalBytes,
-                    serializedKvCacheBytes = snapshot.serializedKvCacheBytes,
-                    vectorEmbeddingChecksum = hash,
-                    summary = summary,
-                    targetPlatform = "Edge llama.cpp / NPU",
-                    modelTag = "Gemma-4-2B-PEFT-INT4",
-                    isPinned = false
-                )
-            )
-        }
-
-        return snapshot
-    }
-
-    fun getWorkspaceFiles(): Map<String, String> = workspaceFiles.toMap()
-
-    fun getSnapshots(): List<WorkspaceSnapshot> = snapshots.toList()
-
-    /**
-     * Computes or updates 128-dim vector embeddings for all active files in the workspace.
-     */
-    suspend fun refreshWorkspaceEmbeddings(): Map<String, FileVectorEmbedding> = withContext(Dispatchers.Default) {
-        workspaceFiles.forEach { (path, content) ->
-            val existing = fileEmbeddings[path]
-            val md = MessageDigest.getInstance("SHA-256")
-            val currentSha = md.digest(content.toByteArray()).joinToString("") { "%02x".format(it) }
-            if (existing == null || existing.sha256Checksum != currentSha) {
-                fileEmbeddings[path] = vectorizationService.generateEmbedding(path, content)
-            }
-        }
-        // Remove embeddings for deleted files
-        val currentPaths = workspaceFiles.keys
-        fileEmbeddings.keys.retainAll(currentPaths)
-        fileEmbeddings.toMap()
-    }
-
-    /**
-     * Retrieves all cached file embeddings.
-     */
-    fun getFileEmbeddings(): Map<String, FileVectorEmbedding> = fileEmbeddings.toMap()
-
-    /**
-     * Performs semantic search over the current workspace files without transmitting entire code.
-     */
-    suspend fun searchWorkspaceSemantics(query: String, topK: Int = 3): List<WorkspaceSemanticSearchResult> {
-        refreshWorkspaceEmbeddings()
-        return vectorizationService.searchRelevantFiles(query, fileEmbeddings.values.toList(), topK)
-    }
-
-    /**
-     * Restores workspace files and memory state from a persisted snapshot.
-     */
-    fun restoreWorkspaceSnapshot(files: Map<String, String>, summary: String): Boolean {
-        workspaceFiles.clear()
-        workspaceFiles.putAll(files)
-        files.forEach { (fileName, content) ->
-            val file = File(sandboxDir, fileName)
-            file.parentFile?.mkdirs()
-            file.writeText(content)
-        }
-        return true
-    }
-
-    fun setFileContent(fileName: String, content: String) {
-        workspaceFiles[fileName] = content
-        val file = File(sandboxDir, fileName)
-        file.parentFile?.mkdirs()
-        file.writeText(content)
-        // Invalidate embedding
-        fileEmbeddings.remove(fileName)
     }
 }

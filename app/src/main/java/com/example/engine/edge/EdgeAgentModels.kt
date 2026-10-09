@@ -162,3 +162,15 @@ data class EdgePipelineEvent(
     val isFailed: Boolean = false,
     val payloadPreview: String = ""
 )
+
+/**
+ * Report containing AST validation and safety inspection results.
+ */
+data class AstValidationReport(
+    val isValid: Boolean,
+    val violations: List<String>,
+    val warnings: List<String>,
+    val astNodeCount: Int,
+    val checkedLanguage: String
+)
+
