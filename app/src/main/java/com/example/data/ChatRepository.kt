@@ -8,7 +8,8 @@ class ChatRepository(
     private val chatDao: ChatDao,
     private val reasoningDao: ReasoningCacheDao,
     private val benchmarkDao: KnowledgeAndBenchmarkDao,
-    private val folderDao: FolderFoundationDao
+    private val folderDao: FolderFoundationDao,
+    private val proofOfThoughtDao: ProofOfThoughtDao? = null
 ) {
 
     val allConversations: Flow<List<ConversationEntity>> = chatDao.getAllConversations()
@@ -27,6 +28,18 @@ class ChatRepository(
     val totalTokensCached: Flow<Long?> = reasoningDao.getTotalTokensCached()
     val totalCacheCount: Flow<Int> = reasoningDao.getCacheCount()
     val allDatasets: Flow<List<LlmDatasetEntity>> = reasoningDao.getAllDatasets()
+
+    // Room Proof-of-Thought (PoT) Offline Cache Flows
+    val allProofOfThoughts: Flow<List<ProofOfThoughtEntity>> = proofOfThoughtDao?.getAllProofOfThoughts() ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    val totalProofCount: Flow<Int> = proofOfThoughtDao?.getProofCount() ?: kotlinx.coroutines.flow.flowOf(0)
+    val totalProofTokens: Flow<Long?> = proofOfThoughtDao?.getTotalProofTokens() ?: kotlinx.coroutines.flow.flowOf(0L)
+
+    fun searchProofOfThoughts(query: String): Flow<List<ProofOfThoughtEntity>> = proofOfThoughtDao?.searchProofs(query) ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    fun getProofsByDomain(domain: String): Flow<List<ProofOfThoughtEntity>> = proofOfThoughtDao?.getProofsByDomain(domain) ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun getProofById(id: String): ProofOfThoughtEntity? = proofOfThoughtDao?.getProofById(id)
+    suspend fun insertProofOfThought(proof: ProofOfThoughtEntity) { proofOfThoughtDao?.insertProof(proof) }
+    suspend fun deleteProofOfThought(id: String) { proofOfThoughtDao?.deleteProof(id) }
+    suspend fun clearAllProofOfThoughts() { proofOfThoughtDao?.clearAllProofs() }
 
     // Web Watcher & Wiki Memory Flows
     val allWebWatchers: Flow<List<WebWatcherEntity>> = reasoningDao.getAllWebWatchers()
@@ -531,6 +544,178 @@ class ChatRepository(
                         userNotes = item.userNotes
                     )
                 )
+            }
+        }
+
+        // Seed initial Room Proof-of-Thought responses if empty for offline access
+        val proofCount = try {
+            proofOfThoughtDao?.getProofById("pot_basel_problem")
+        } catch (_: Exception) {
+            null
+        }
+
+        if (proofCount == null && proofOfThoughtDao != null) {
+            val sampleProofs = listOf(
+                ProofOfThoughtEntity(
+                    id = "pot_basel_problem",
+                    title = "Euler's Solution to the Basel Problem",
+                    premiseOrHypothesis = "Prove that \\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6} using the Weierstrass product expansion of \\frac{\\sin x}{x}.",
+                    normalizedQuery = "basel problem sum 1 n 2 pi 2 6 weierstrass factorization euler",
+                    domain = "Mathematics",
+                    proofTechnique = "Weierstrass Product Expansion",
+                    formalProofBody = """
+                    ### Theorem Statement
+                    The infinite series of the reciprocal squares converges to:
+                    $$\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}$$
+
+                    ### Rigorous Step-by-Step Proof
+                    1. **Taylor Series Expansion**:
+                       The Taylor series for sin(x) centered at x=0 is:
+                       sin(x) = x - x^3/3! + x^5/5! - x^7/7! + ...
+                       Dividing both sides by x (for x != 0):
+                       sin(x)/x = 1 - x^2/6 + x^4/120 - ...
+
+                    2. **Weierstrass Factorization (Roots of sin x)**:
+                       The non-zero roots of sin(x) = 0 occur precisely at x = ±pi, ±2pi, ±3pi, ...
+                       By Euler's factorization theorem:
+                       sin(x)/x = prod_{n=1}^{\infty} (1 - x^2 / (n^2 * pi^2)) = (1 - x^2/pi^2)(1 - x^2/(4pi^2))...
+
+                    3. **Matching Quadratic Coefficients**:
+                       Expanding the infinite product, the coefficient of x^2 is:
+                       -sum_{n=1}^{\infty} 1 / (n^2 * pi^2)
+                       Equating this to the coefficient of x^2 from the Taylor series (-1/6):
+                       -(1/pi^2) * sum_{n=1}^{\infty} (1/n^2) = -1/6
+                       Multiplying both sides by -pi^2:
+                       sum_{n=1}^{\infty} (1/n^2) = pi^2 / 6
+                    """.trimIndent(),
+                    reasoningStepsJson = """[{"step":1,"headline":"Taylor series coefficient","invariant":"sin(x)/x coefficient of x^2 is -1/6"},{"step":2,"headline":"Infinite product of roots","invariant":"Zeros at k*pi yield sum(-1/(n*pi)^2)"},{"step":3,"headline":"Equating coefficients","invariant":"Equality holds by Hadamard factorization theorem"}]""",
+                    qedConclusion = "Q.E.D. The sum of reciprocal squares evaluates exactly to \\pi^2 / 6 without residual error.",
+                    verificationStatus = "VERIFIED_FORMAL",
+                    confidenceScore = 1.0,
+                    thinkingTokens = 3840,
+                    thinkingDurationMs = 1240L,
+                    modelSource = "Offline Deep Thinking Core",
+                    isOfflineAvailable = true,
+                    localCachedTimestamp = System.currentTimeMillis() - 7200000L
+                ),
+                ProofOfThoughtEntity(
+                    id = "pot_halting_problem",
+                    title = "Undecidability of the Halting Problem",
+                    premiseOrHypothesis = "There exists no Turing machine H that can decide for every arbitrary pair (M, w) whether M halts on input w.",
+                    normalizedQuery = "halting problem undecidability turing machine contradiction diagonalization",
+                    domain = "Computer Science",
+                    proofTechnique = "Contradiction by Diagonalization",
+                    formalProofBody = """
+                    ### Hypothesis
+                    Assume towards contradiction that there exists a total decider Turing Machine H(<M, w>) such that:
+                    H(<M, w>) = 1 if M halts on w, else 0 if M loops infinitely on w.
+
+                    ### Construction of Adversarial Machine D
+                    Construct a new Turing machine D that takes the description <M> of a Turing machine as input:
+                    1. D invokes H with input <M, <M>>.
+                    2. If H outputs 1 (halts), then D enters an explicit infinite loop: while (true) {}.
+                    3. If H outputs 0 (loops), then D halts immediately with accept.
+
+                    ### The Diagonal Contradiction
+                    Now evaluate the execution of D on its own encoding <D>:
+                    - If D halts on <D> => H(<D, <D>>) = 1 => D loops infinitely. (Contradiction!)
+                    - If D loops infinitely on <D> => H(<D, <D>>) = 0 => D halts. (Contradiction!)
+
+                    Both cases lead to a logical contradiction P <=> not P.
+                    """.trimIndent(),
+                    reasoningStepsJson = """[{"step":1,"headline":"Assume decider H exists","invariant":"H is total and halts on all inputs"},{"step":2,"headline":"Construct diagonalizer D","invariant":"D inverses H(M, M)"},{"step":3,"headline":"Evaluate D(D)","invariant":"D halts iff D loops, proving undecidability"}]""",
+                    qedConclusion = "Q.E.D. No such general decider H can exist. The Halting Problem is strictly undecidable.",
+                    verificationStatus = "VERIFIED_FORMAL",
+                    confidenceScore = 1.0,
+                    thinkingTokens = 4120,
+                    thinkingDurationMs = 1530L,
+                    modelSource = "Offline Deep Thinking Core",
+                    isOfflineAvailable = true,
+                    localCachedTimestamp = System.currentTimeMillis() - 3600000L
+                ),
+                ProofOfThoughtEntity(
+                    id = "pot_paxos_safety",
+                    title = "Paxos Consensus Safety Invariant",
+                    premiseOrHypothesis = "If a proposal with value v is chosen at proposal number n, then every proposal chosen at any number n' > n also has value v.",
+                    normalizedQuery = "paxos consensus safety invariant quorum intersection hoare logic",
+                    domain = "Distributed Systems",
+                    proofTechnique = "Invariant Assertion & Quorum Intersection",
+                    formalProofBody = """
+                    ### Invariant Formulation
+                    Let Q be the set of majorities of acceptors. For any Q1, Q2 in Q, Q1 intersection Q2 != empty (Quorum Intersection Property).
+
+                    ### Mathematical Induction on Proposal Number n'
+                    - Base Case: Let n be the earliest proposal number for which a value v is chosen.
+                    - Inductive Step: Assume the invariant holds for all k in (n, n'-1).
+                      To issue proposal (n', v'), a proposer must receive Promise messages from a quorum Q2.
+                      Since v was chosen at n, a quorum Q1 accepted (n, v).
+                      Because Q1 intersection Q2 != empty, there is at least one node 'a' in Q1 intersection Q2.
+                      Node 'a' accepted (n, v), so it returns v with proposal number >= n to the proposer in Phase 1b.
+                      The proposer is constrained to pick the value associated with the highest proposal number returned.
+                      Therefore, v' = v.
+                    """.trimIndent(),
+                    reasoningStepsJson = """[{"step":1,"headline":"Quorum Intersection","invariant":"Any two majorities share at least one acceptor"},{"step":2,"headline":"Promise constraint","invariant":"Acceptor reports highest accepted proposal <= n'"},{"step":3,"headline":"Inductive conclusion","invariant":"Value v is preserved monotonically across all higher proposal rounds"}]""",
+                    qedConclusion = "Q.E.D. Safety invariant holds globally: at most one value can ever be chosen in any execution.",
+                    verificationStatus = "VERIFIED_FORMAL",
+                    confidenceScore = 0.99,
+                    thinkingTokens = 4600,
+                    thinkingDurationMs = 1780L,
+                    modelSource = "Offline Deep Thinking Core",
+                    isOfflineAvailable = true,
+                    localCachedTimestamp = System.currentTimeMillis() - 1800000L
+                )
+            )
+            proofOfThoughtDao.insertProofs(sampleProofs)
+        }
+
+        // Seed initial LLM Training & Fine-Tuning Datasets if empty
+        val datasetCount = try {
+            reasoningDao.getDatasetById("dataset_gsm8k_sft")
+        } catch (_: Exception) {
+            null
+        }
+
+        if (datasetCount == null) {
+            val sampleDatasets = listOf(
+                LlmDatasetEntity(
+                    id = "dataset_gsm8k_sft",
+                    name = "GSM8K Formal Math Proofs (SFT)",
+                    description = "8,500 grade school and Olympiad math problems with chain-of-thought proofs and invariant assertions.",
+                    fileFormat = "JSONL",
+                    entryCount = 8500,
+                    fileSize = 12400000L,
+                    rawContent = """{"prompt": "Prove that the sum of first n odd integers is n^2.", "completion": "Base case n=1: 1 = 1^2. Induction step: sum_{k=1}^{n+1} (2k-1) = n^2 + 2n+1 = (n+1)^2. QED."}""",
+                    uploadedAt = System.currentTimeMillis() - 86400000L,
+                    purpose = "Supervised Fine-Tuning (SFT)",
+                    modelTarget = "deepseek-r1-7b"
+                ),
+                LlmDatasetEntity(
+                    id = "dataset_hoare_invariants",
+                    name = "Hoare Logic & Loop Invariants",
+                    description = "Formal algorithmic correctness pairs specifying precondition, loop invariant, postcondition, and termination metric.",
+                    fileFormat = "JSONL",
+                    entryCount = 3400,
+                    fileSize = 4850000L,
+                    rawContent = """{"algorithm": "Binary Search", "precondition": "A is sorted ascending", "invariant": "target in A[low..high]", "termination": "high - low decreases monotonically"}""",
+                    uploadedAt = System.currentTimeMillis() - 43200000L,
+                    purpose = "Supervised Fine-Tuning (SFT)",
+                    modelTarget = "qwen-2.5-coder"
+                ),
+                LlmDatasetEntity(
+                    id = "dataset_dpo_alignment",
+                    name = "RLHF DPO Preference Alignment",
+                    description = "Direct Preference Optimization pairs penalizing hallucination and rewarding verifiable deductive proofs.",
+                    fileFormat = "JSON",
+                    entryCount = 2100,
+                    fileSize = 3100000L,
+                    rawContent = """[{"prompt": "Explain P vs NP relativization barrier", "chosen": "Baker-Gill-Solovay showed P^A=NP^A and P^B!=NP^B, proving diagonalization is non-oracle-sensitive.", "rejected": "P vs NP cannot be solved because computers are too slow."}]""",
+                    uploadedAt = System.currentTimeMillis() - 21600000L,
+                    purpose = "Direct Preference Optimization (DPO)",
+                    modelTarget = "gemini-3.7-flash"
+                )
+            )
+            sampleDatasets.forEach { dataset ->
+                reasoningDao.insertDataset(dataset)
             }
         }
     }

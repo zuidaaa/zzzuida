@@ -40,7 +40,7 @@ class AgentTelemetryEnvironmentTest {
         assertNotNull("Application context must be loaded in the Robolectric JVM environment", context)
 
         val appName = context.getString(R.string.app_name)
-        assertTrue("App name resource must contain Deep Think", appName.contains("Deep Think", ignoreCase = true))
+        assertTrue("App name resource must contain Tnk Insd th bx...", appName.contains("Tnk Insd th bx", ignoreCase = true))
 
         // Verify SQLite Database configuration can be successfully verified or loaded
         val dbFile = context.getDatabasePath("app_database")

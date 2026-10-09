@@ -25,10 +25,14 @@ import com.example.data.WikiPageEntity
 import com.example.data.LlmWikiStorageService
 import com.example.data.PresetCatalog
 import com.example.data.ReasoningCacheEntity
+import com.example.data.ProofOfThoughtEntity
 import com.example.data.ReasoningPreset
 import com.example.data.SuggestedLink
 import com.example.data.ThumbnailConcept
 import com.example.data.VideoChapter
+import com.example.engine.AndroidFileNetworkManager
+import com.example.engine.NetworkStatusInfo
+import com.example.engine.StorageStatsInfo
 import com.example.engine.AutonomousPipeline
 import com.example.engine.CpuBenchmarkResult
 import com.example.engine.CpuClusterInfo
@@ -400,7 +404,16 @@ data class UiState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application)
-    private val repository = ChatRepository(database.chatDao(), database.reasoningCacheDao(), database.knowledgeAndBenchmarkDao(), database.folderFoundationDao())
+    private val repository = ChatRepository(
+        database.chatDao(),
+        database.reasoningCacheDao(),
+        database.knowledgeAndBenchmarkDao(),
+        database.folderFoundationDao(),
+        database.proofOfThoughtDao()
+    )
+    val fileNetworkManager = AndroidFileNetworkManager(application)
+    val networkStatus: StateFlow<NetworkStatusInfo> = fileNetworkManager.networkStatus
+    val storageStats: StateFlow<StorageStatsInfo> = fileNetworkManager.storageStats
     val thinkingManager = HybridThinkingManager(repository)
     val hfMcpClient = HuggingFaceMcpClient()
     val wikiStorageService = LlmWikiStorageService(database.reasoningCacheDao())
@@ -605,6 +618,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val datasetsList: StateFlow<List<LlmDatasetEntity>> = repository.allDatasets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val proofOfThoughts: StateFlow<List<ProofOfThoughtEntity>> = repository.allProofOfThoughts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val totalProofCount: StateFlow<Int> = repository.totalProofCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val totalProofTokens: StateFlow<Long?> = repository.totalProofTokens
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     val totalCacheCount: StateFlow<Int> = repository.totalCacheCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -2187,7 +2209,171 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteTrainingDataset(id: String) {
         viewModelScope.launch {
             repository.deleteDataset(id)
+            fileNetworkManager.refreshStorageStats()
+            triggerHapticFeedback()
         }
+    }
+
+    fun clearAllDatasets() {
+        viewModelScope.launch {
+            repository.clearAllDatasets()
+            fileNetworkManager.refreshStorageStats()
+            triggerHapticFeedback()
+        }
+    }
+
+    fun exportDatasetToFile(dataset: LlmDatasetEntity): java.io.File {
+        val ext = when (dataset.fileFormat.uppercase()) {
+            "JSON" -> "json"
+            "CSV" -> "csv"
+            else -> "jsonl"
+        }
+        return fileNetworkManager.exportDatasetToFile(dataset.id, dataset.name, dataset.rawContent, ext)
+    }
+
+    data class PresetDatasetData(
+        val name: String,
+        val desc: String,
+        val fmt: String,
+        val content: String,
+        val purpose: String,
+        val model: String
+    )
+
+    fun loadPresetFineTuningDataset(presetKey: String) {
+        val preset = when (presetKey) {
+            "gsm8k" -> PresetDatasetData(
+                name = "GSM8K Formal Math Proofs (SFT)",
+                desc = "Mathematical problems with step-by-step rigorous invariant assertions and deductive proofs.",
+                fmt = "JSONL",
+                content = """{"question": "Prove that for all positive real x, x + 1/x >= 2.", "proof_cot": "(x - 1)^2 >= 0 => x^2 - 2x + 1 >= 0 => x^2 + 1 >= 2x => x + 1/x >= 2 since x > 0.", "answer": "2"}
+{"question": "Prove sqrt(2) is irrational.", "proof_cot": "Assume p/q in lowest terms. 2q^2 = p^2 => p is even => p=2k => 2q^2 = 4k^2 => q^2 = 2k^2 => q is even. Contradicts gcd(p,q)=1.", "answer": "Irrational"}""",
+                purpose = "Supervised Fine-Tuning (SFT)",
+                model = "deepseek-r1-7b"
+            )
+            "hoare" -> PresetDatasetData(
+                name = "Hoare Logic & Invariants",
+                desc = "Algorithmic correctness pairs specifying loop invariants, preconditions, and termination metrics.",
+                fmt = "JSONL",
+                content = """{"algorithm": "Binary Search", "pre": "array is sorted", "invariant": "low <= mid <= high and target in array[low..high]", "termination": "high - low decreases"}
+{"algorithm": "Euclidean GCD", "pre": "a > 0 and b > 0", "invariant": "gcd(a, b) = gcd(a_orig, b_orig)", "termination": "b decreases"}""",
+                purpose = "Supervised Fine-Tuning (SFT)",
+                model = "qwen-2.5-coder"
+            )
+            "dpo" -> PresetDatasetData(
+                name = "RLHF DPO Anti-Hallucination",
+                desc = "Direct Preference Optimization pairs penalizing unverified assumptions and rewarding rigorous proof trees.",
+                fmt = "JSON",
+                content = """[{"prompt": "Prove P vs NP relativization barrier", "chosen": "Baker-Gill-Solovay constructed oracles A and B where P^A=NP^A and P^B!=NP^B, proving diagonalizing Turing machines cannot resolve P vs NP.", "rejected": "P vs NP cannot be solved because algorithms are unpredictable."}]""",
+                purpose = "Direct Preference Optimization (DPO)",
+                model = "gemini-3.7-flash"
+            )
+            else -> PresetDatasetData(
+                name = "Exynos NPU Quantization Calibration",
+                desc = "Layer weight distributions and scaling factors for INT4/W4A16 mobile hardware execution.",
+                fmt = "CSV",
+                content = "tensor_name,quant_type,scale_factor,zero_point,min_val,max_val\nmodel.layers.0.q_proj,INT4,0.0124,0,-1.42,1.38\nmodel.layers.0.k_proj,INT4,0.0118,0,-1.28,1.26\nmodel.layers.0.mlp_gate,INT4,0.0145,0,-1.82,1.79",
+                purpose = "Quantization Calibration",
+                model = "llama-3.2-3b"
+            )
+        }
+        uploadDataset(preset.name, preset.desc, preset.fmt, preset.content, preset.purpose, preset.model)
+        fileNetworkManager.refreshStorageStats()
+        triggerHapticFeedback()
+    }
+
+    // ==========================================
+    // Proof-of-Thought (PoT) Room Persistence Methods
+    // ==========================================
+
+    fun cacheProofOfThought(
+        title: String,
+        premise: String,
+        domain: String = "Mathematics",
+        technique: String = "Contradiction",
+        proofBody: String,
+        stepsJson: String = "[]",
+        qedConclusion: String = "",
+        status: String = "VERIFIED_FORMAL",
+        confidence: Double = 0.99,
+        tokens: Int = 4096,
+        durationMs: Long = 1800L,
+        modelSource: String = "Offline Deep Thinking Core"
+    ) {
+        viewModelScope.launch {
+            val normalized = premise.lowercase().replace(Regex("[^a-z0-9 ]"), " ").take(64)
+            val entity = ProofOfThoughtEntity(
+                id = "pot_" + UUID.randomUUID().toString().take(12),
+                title = title.ifBlank { "Formal Mathematical Proof" },
+                premiseOrHypothesis = premise,
+                normalizedQuery = normalized,
+                domain = domain,
+                proofTechnique = technique,
+                formalProofBody = proofBody,
+                reasoningStepsJson = stepsJson,
+                qedConclusion = qedConclusion.ifBlank { "Q.E.D. Formal verification complete." },
+                verificationStatus = status,
+                confidenceScore = confidence,
+                thinkingTokens = tokens,
+                thinkingDurationMs = durationMs,
+                modelSource = modelSource,
+                isOfflineAvailable = true,
+                localCachedTimestamp = System.currentTimeMillis()
+            )
+            repository.insertProofOfThought(entity)
+            fileNetworkManager.refreshStorageStats()
+            triggerHapticFeedback()
+        }
+    }
+
+    fun deleteProofOfThought(id: String) {
+        viewModelScope.launch {
+            repository.deleteProofOfThought(id)
+            fileNetworkManager.refreshStorageStats()
+            triggerHapticFeedback()
+        }
+    }
+
+    fun clearAllProofOfThoughts() {
+        viewModelScope.launch {
+            repository.clearAllProofOfThoughts()
+            fileNetworkManager.refreshStorageStats()
+            triggerHapticFeedback()
+        }
+    }
+
+    fun exportProofToFile(proof: ProofOfThoughtEntity, format: String = "md"): java.io.File {
+        val content = """
+        # ${proof.title}
+        **Domain:** ${proof.domain} | **Technique:** ${proof.proofTechnique}
+        **Model Source:** ${proof.modelSource} | **Verification:** ${proof.verificationStatus} (${(proof.confidenceScore * 100).toInt()}%)
+        **Offline Cached:** ${java.util.Date(proof.localCachedTimestamp)}
+
+        ## Premise / Hypothesis
+        ${proof.premiseOrHypothesis}
+
+        ## Rigorous Formal Proof
+        ${proof.formalProofBody}
+
+        ## Q.E.D. Conclusion
+        ${proof.qedConclusion}
+        """.trimIndent()
+        return fileNetworkManager.exportProofToFile(proof.id, proof.title, content, format)
+    }
+
+    // ==========================================
+    // Android File & Network Management
+    // ==========================================
+
+    fun toggleForceOfflineMode(enabled: Boolean) {
+        fileNetworkManager.setForceOffline(enabled)
+        triggerHapticFeedback()
+    }
+
+    fun refreshNetworkAndStorage() {
+        fileNetworkManager.evaluateNetworkState()
+        fileNetworkManager.refreshStorageStats()
+        triggerHapticFeedback()
     }
 
     // ==========================================

@@ -25,9 +25,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WikiPageEntity::class,
         AgentSkillEntity::class,
         SkillSyncLogEntity::class,
-        FolderFileEntity::class
+        FolderFileEntity::class,
+        ProofOfThoughtEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reasoningCacheDao(): ReasoningCacheDao
     abstract fun knowledgeAndBenchmarkDao(): KnowledgeAndBenchmarkDao
     abstract fun folderFoundationDao(): FolderFoundationDao
+    abstract fun proofOfThoughtDao(): ProofOfThoughtDao
 
 
     companion object {
@@ -177,6 +179,35 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration 13 to 14: Proof of Thought Cache for Offline Access
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `proof_of_thought_cache` (
+                        `id` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `premiseOrHypothesis` TEXT NOT NULL,
+                        `normalizedQuery` TEXT NOT NULL,
+                        `domain` TEXT NOT NULL DEFAULT 'Mathematics',
+                        `proofTechnique` TEXT NOT NULL DEFAULT 'Contradiction',
+                        `formalProofBody` TEXT NOT NULL,
+                        `reasoningStepsJson` TEXT NOT NULL DEFAULT '[]',
+                        `qedConclusion` TEXT NOT NULL DEFAULT '',
+                        `verificationStatus` TEXT NOT NULL DEFAULT 'VERIFIED_FORMAL',
+                        `confidenceScore` REAL NOT NULL DEFAULT 0.99,
+                        `thinkingTokens` INTEGER NOT NULL DEFAULT 4096,
+                        `thinkingDurationMs` INTEGER NOT NULL DEFAULT 1850,
+                        `modelSource` TEXT NOT NULL DEFAULT 'Gemini 3.7 Offline Deep Thinking',
+                        `isOfflineAvailable` INTEGER NOT NULL DEFAULT 1,
+                        `localCachedTimestamp` INTEGER NOT NULL,
+                        `exportFilePath` TEXT DEFAULT NULL,
+                        `datasetLinkedId` TEXT DEFAULT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -184,7 +215,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "gemini_deepthink_db"
                 )
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_10_11, MIGRATION_11_12)
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_13_14)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
                 INSTANCE = instance

@@ -283,5 +283,27 @@ data class FolderFileEntity(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "proof_of_thought_cache")
+data class ProofOfThoughtEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val premiseOrHypothesis: String,
+    val normalizedQuery: String,
+    val domain: String = "Mathematics", // "Mathematics", "Logic", "Computer Science", "Physics", "Distributed Systems"
+    val proofTechnique: String = "Contradiction", // "Contradiction", "Induction", "Invariant Assertion", "Hoare Logic", "Constructive"
+    val formalProofBody: String,
+    val reasoningStepsJson: String = "[]",
+    val qedConclusion: String = "",
+    val verificationStatus: String = "VERIFIED_FORMAL", // "VERIFIED_FORMAL", "CHECKED_OFFLINE", "HEURISTIC"
+    val confidenceScore: Double = 0.99,
+    val thinkingTokens: Int = 4096,
+    val thinkingDurationMs: Long = 1850L,
+    val modelSource: String = "Gemini 3.7 Offline Deep Thinking",
+    val isOfflineAvailable: Boolean = true,
+    val localCachedTimestamp: Long = System.currentTimeMillis(),
+    val exportFilePath: String? = null,
+    val datasetLinkedId: String? = null
+)
+
 
 
