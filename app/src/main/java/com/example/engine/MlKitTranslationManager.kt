@@ -234,4 +234,26 @@ class MlKitTranslationManager(private val context: Context) {
         translatorCache.values.forEach { it.close() }
         translatorCache.clear()
     }
+
+    /**
+     * Download model for a specific language code (e.g. "de", "en", "zh") to run native translation offline.
+     */
+    suspend fun downloadLanguageModel(langCode: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val mlKitLang = TranslateLanguage.fromLanguageTag(langCode) ?: TranslateLanguage.ENGLISH
+            val options = TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(mlKitLang)
+                .build()
+            val translator = Translation.getClient(options)
+            val conditions = DownloadConditions.Builder().build()
+            suspendCancellableCoroutine { cont ->
+                translator.downloadModelIfNeeded(conditions)
+                    .addOnSuccessListener { cont.resume(true) }
+                    .addOnFailureListener { cont.resume(false) }
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

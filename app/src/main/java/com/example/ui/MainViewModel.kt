@@ -421,6 +421,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val voiceConversationManager = com.example.audio.VoiceConversationManager(application, viewModelScope)
     val audioTranscriptionManager = com.example.audio.AudioTranscriptionManager(application, viewModelScope)
     val translationManager = com.example.engine.MlKitTranslationManager(application)
+    val hardwareMonitorManager = com.example.engine.HardwareMonitorManager(application)
+    val hardwareMetrics: StateFlow<com.example.engine.HardwareMetricsState> = hardwareMonitorManager.metricsState
+    val buttonActionManager = com.example.engine.buttons.ConfigurableButtonActionManager(application)
+    val thinkingAiDebuggerManager = com.example.engine.debug.ThinkingAiDebuggerManager(application)
+    val thinkingDebuggerState: StateFlow<com.example.engine.debug.ThinkingDebuggerState> = thinkingAiDebuggerManager.debuggerState
+    val mks2SynergyEngine = com.example.engine.mks2.Mks2SynergyEngine(application)
 
     private val ollamaClient = OllamaClient()
     private val llmApiClient = UniversalLlmApiClient()
@@ -795,6 +801,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val authManager = AuthManager(application)
 
     init {
+        hardwareMonitorManager.startMonitoring()
         authManager.attemptAutoSignIn(
             scope = viewModelScope,
             onSuccess = { onAuthSuccess() },

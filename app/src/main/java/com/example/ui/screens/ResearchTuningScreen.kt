@@ -36,7 +36,7 @@ fun ResearchTuningScreen(
     uiState: UiState
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("Datasets (SFT/DPO)", "Proof-of-Thought Cache", "File & Network Manager", "Optimization Vectors")
+    val tabTitles = listOf("Datasets (SFT/DPO)", "Proof-of-Thought Cache", "File & Network Manager", "Optimization Vectors", "90s Hardware Benchmark", "Telemetry Dashboard", "Live Hardware & Widgets", "Button & Action Mapping", "Thinking AI Debugger", "MKS² Synergy Stack")
 
     Column(
         modifier = Modifier
@@ -96,6 +96,12 @@ fun ResearchTuningScreen(
             1 -> ProofOfThoughtSection(viewModel = viewModel)
             2 -> FileNetworkManagerSection(viewModel = viewModel)
             3 -> OptimizationVectorsSection(viewModel = viewModel, uiState = uiState)
+            4 -> SustainedHardwareBenchmarkScreen(viewModel = viewModel, uiState = uiState)
+            5 -> BenchmarkTelemetryDashboardScreen(viewModel = viewModel, uiState = uiState)
+            6 -> LiveHardwareWidgetsSection(viewModel = viewModel)
+            7 -> ConfigurableButtonMappingScreen(viewModel = viewModel)
+            8 -> ThinkingAiDebuggerScreen(viewModel = viewModel)
+            9 -> Mks2SynergyDashboardScreen(viewModel = viewModel)
         }
     }
 }
@@ -1172,6 +1178,71 @@ private fun TuningCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveHardwareWidgetsSection(viewModel: MainViewModel) {
+    val metrics by viewModel.hardwareMetrics.collectAsStateWithLifecycle()
+    var previewLockScreen by remember { mutableStateOf(false) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 32.dp)
+    ) {
+        item {
+            GlassPanel {
+                Column {
+                    Text(
+                        text = "Real-Time Hardware & LLM Telemetry Service",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Background monitoring active via Kotlin StateFlow. Exposing thermal states, battery consumption, CPU/GPU utilization, and active LLM performance metrics.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Start Screen / Home Screen Widget",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = LuminousBlue)
+                )
+                Switch(
+                    checked = previewLockScreen,
+                    onCheckedChange = { previewLockScreen = it },
+                    colors = SwitchDefaults.colors(checkedThumbColor = LuminousBlue)
+                )
+            }
+        }
+
+        item {
+            com.example.ui.components.StartScreenHardwareWidget(metrics = metrics)
+        }
+
+        item {
+            Text(
+                text = if (previewLockScreen) "Lock Screen Glanceable Widget (Preview Active)" else "Toggle Switch Above to Preview Lock Screen Widget",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = if (previewLockScreen) VibrantPurple else TextSecondary),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        if (previewLockScreen) {
+            item {
+                com.example.ui.components.LockScreenHardwareWidget(metrics = metrics)
             }
         }
     }

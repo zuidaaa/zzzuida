@@ -87,7 +87,7 @@ class EdgeStateManager(
             val file = sandboxExecutor.resolveSandboxedFile(fileName)
             file.parentFile?.mkdirs()
             file.writeText(content)
-        } catch (_: Exception) { }
+        } catch (e: Exception) { }
         fileEmbeddings.remove(fileName)
     }
 
@@ -153,7 +153,7 @@ class EdgeStateManager(
                 val file = sandboxExecutor.resolveSandboxedFile(fileName)
                 file.parentFile?.mkdirs()
                 file.writeText(content)
-            } catch (_: Exception) { }
+            } catch (e: Exception) { }
         }
         fileEmbeddings.clear()
         return true

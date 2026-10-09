@@ -160,7 +160,7 @@ fun MainAppLayout(viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Tnk Insd th bx...",
+                            text = "T#ink insid3 the b0x",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -282,7 +282,7 @@ fun EdgePanelContent(viewModel: MainViewModel, uiState: UiState, onSettingsClick
             .verticalScroll(rememberScrollState())
     ) {
         Text(
-            text = "Tnk Insd th bx...",
+            text = "T#ink insid3 the b0x",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Black,
             color = Color.White,

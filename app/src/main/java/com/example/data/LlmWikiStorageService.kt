@@ -65,7 +65,8 @@ class LlmWikiStorageService(
                 val wikilinks = mutableListOf<String>()
                 for (i in 0 until links.length()) {
                     val linkVal = links.optString(i)
-                    val label = linkVal.replace("wiki-", "").replace("-", " ").capitalize()
+                    val label = linkVal.replace("wiki-", "").replace("-", " ")
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                     wikilinks.add("[[$label]]")
                 }
                 appendLine("connections: ${wikilinks.joinToString(", ")}")

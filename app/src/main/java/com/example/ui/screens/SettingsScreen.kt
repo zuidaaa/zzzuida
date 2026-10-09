@@ -39,6 +39,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Wifi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -95,7 +98,8 @@ import com.example.ui.theme.GeminiCyan
 import com.example.ui.theme.GeminiEmerald
 import com.example.ui.theme.GeminiPink
 import com.example.ui.theme.GeminiPurple
-import com.example.ui.theme.VerificationGreen
+import androidx.compose.material.icons.filled.TouchApp
+import com.example.ui.theme.*
 
 @Composable
 fun SettingsScreen(
@@ -179,6 +183,265 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("settings_open_one_ui_9_btn")
                     ) {
                         Text("Öffnen", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+        var downloadingLang by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+        var downloadStatusMsg by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+        var selectedNativeLang by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("en") }
+        var showManualDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        var showButtonMappingDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        var showDebuggerDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+        if (showDebuggerDialog) {
+            AlertDialog(
+                onDismissRequest = { showDebuggerDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showDebuggerDialog = false }) {
+                        Text("Close", fontWeight = FontWeight.Bold, color = GeminiBlueLight)
+                    }
+                },
+                text = {
+                    Box(modifier = Modifier.fillMaxSize(0.95f)) {
+                        ThinkingAiDebuggerScreen(viewModel = viewModel)
+                    }
+                },
+                containerColor = DarkBackground,
+                modifier = Modifier.fillMaxSize(0.95f)
+            )
+        }
+
+        if (showButtonMappingDialog) {
+            AlertDialog(
+                onDismissRequest = { showButtonMappingDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showButtonMappingDialog = false }) {
+                        Text("Close", fontWeight = FontWeight.Bold, color = GeminiBlueLight)
+                    }
+                },
+                text = {
+                    Box(modifier = Modifier.fillMaxSize(0.95f)) {
+                        ConfigurableButtonMappingScreen(viewModel = viewModel)
+                    }
+                },
+                containerColor = DarkBackground,
+                modifier = Modifier.fillMaxSize(0.95f)
+            )
+        }
+
+        if (showManualDialog) {
+            AlertDialog(
+                onDismissRequest = { showManualDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showManualDialog = false }) {
+                        Text("Close", fontWeight = FontWeight.Bold, color = GeminiBlueLight)
+                    }
+                },
+                text = {
+                    Box(modifier = Modifier.fillMaxSize(0.95f)) {
+                        UserManualAndRoadmapScreen(viewModel = viewModel, uiState = uiState)
+                    }
+                },
+                containerColor = DarkBackground,
+                modifier = Modifier.fillMaxSize(0.95f)
+            )
+        }
+
+        // Native Language Download & User Manual Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("native_language_download_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(20.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GeminiBlue.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            tint = GeminiBlueLight,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Native Language Download",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Choose German, English, or Mandarin for offline translation",
+                                fontSize = 11.sp,
+                                color = DarkTextMuted
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = { showManualDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = GeminiBlue.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("open_user_manual_btn")
+                    ) {
+                        Text("Manual & Roadmap", fontSize = 11.sp, color = GeminiBlueLight, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                androidx.compose.material3.HorizontalDivider(color = DarkOutlineVariant)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val languages = listOf(
+                        Triple("en", "English 🇬🇧", "en"),
+                        Triple("de", "German 🇩🇪", "de"),
+                        Triple("zh", "Mandarin 🇨🇳", "zh")
+                    )
+                    languages.forEach { (code, label, langTag) ->
+                        val isSelected = selectedNativeLang == code
+                        val isDownloading = downloadingLang == code
+                        Button(
+                            onClick = {
+                                selectedNativeLang = code
+                                downloadingLang = code
+                                downloadStatusMsg = "Downloading $label..."
+                                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    val success = viewModel.translationManager.downloadLanguageModel(langTag)
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        downloadingLang = null
+                                        downloadStatusMsg = if (success) "$label downloaded successfully!" else "Download failed for $label"
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) GeminiBlue else DarkSurfaceVariant
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).testTag("lang_download_${code}_btn")
+                        ) {
+                            if (isDownloading) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+                }
+
+                if (downloadStatusMsg != null) {
+                    Text(
+                        text = downloadStatusMsg!!,
+                        fontSize = 11.sp,
+                        color = VerificationGreen,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+
+        // Button Action Mapping & Event Handling Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("button_action_mapping_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, VibrantPurple.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.TouchApp,
+                            contentDescription = null,
+                            tint = VibrantPurple,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Frei Konfigurierbare Tasten & Action-Mapping",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Action-Zuordnung & technische Ereignisverarbeitung digitaler Schaltflächen",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { showButtonMappingDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = VibrantPurple.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("open_button_mapping_btn")
+                    ) {
+                        Text("Konfigurieren", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Thinking AI-Core Debugger & Crash Prevention Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("thinking_ai_debugger_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GeminiBlue.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Psychology,
+                            contentDescription = null,
+                            tint = GeminiBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Thinking AI-Core Debugger",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Segment-by-segment crash prevention & sustained app state",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { showDebuggerDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = GeminiBlue.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("open_thinking_debugger_btn")
+                    ) {
+                        Text("Diagnose", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }

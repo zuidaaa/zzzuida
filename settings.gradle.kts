@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Deep Think 3.7"
+rootProject.name = "T#ink insid3 the b0x"
 
 include(":app")
