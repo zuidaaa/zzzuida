@@ -195,6 +195,25 @@ fun SettingsScreen(
         var showManualDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
         var showButtonMappingDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
         var showDebuggerDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        var showMks2Dialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+        if (showMks2Dialog) {
+            AlertDialog(
+                onDismissRequest = { showMks2Dialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showMks2Dialog = false }) {
+                        Text("Close", fontWeight = FontWeight.Bold, color = GeminiBlueLight)
+                    }
+                },
+                text = {
+                    Box(modifier = Modifier.fillMaxSize(0.95f)) {
+                        Mks2SynergyDashboardScreen(viewModel = viewModel)
+                    }
+                },
+                containerColor = DarkBackground,
+                modifier = Modifier.fillMaxSize(0.95f)
+            )
+        }
 
         if (showDebuggerDialog) {
             AlertDialog(
@@ -442,6 +461,55 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("open_thinking_debugger_btn")
                     ) {
                         Text("Diagnose", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // MKS² – Mobile KV-Cache Synergy Stack Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("mks2_synergy_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GeminiBlue.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Memory,
+                            contentDescription = null,
+                            tint = GeminiBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "MKS² – Mobile KV-Cache Synergy Stack",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Snapdragon 8 Elite • Pre-Flight Gate & Resilient Circuit-Breaker",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { showMks2Dialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = GeminiBlue.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("open_mks2_stack_btn")
+                    ) {
+                        Text("Stack Öffnen", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
