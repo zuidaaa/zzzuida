@@ -414,7 +414,8 @@ fun ChatScreen(
                                     viewModel.openExportDialog(exportData)
                                 },
                                 onOpenFeedback = { viewModel.openFeedbackDialog(msg) },
-                                onQuickRate = { rating -> viewModel.quickRateMessage(msg.id, rating) }
+                                onQuickRate = { rating -> viewModel.quickRateMessage(msg.id, rating) },
+                                onOpenCitationUrl = { url -> viewModel.openBrowserWithUrl(url) }
                             )
                         }
 
@@ -738,7 +739,8 @@ fun ChatMessageCard(
     onDebugNodes: (stepIndex: Int) -> Unit = {},
     onExportTrace: () -> Unit = {},
     onOpenFeedback: () -> Unit,
-    onQuickRate: (Int) -> Unit
+    onQuickRate: (Int) -> Unit,
+    onOpenCitationUrl: (String) -> Unit = {}
 ) {
     val isUser = message.role == "user"
     val context = LocalContext.current
@@ -1005,7 +1007,8 @@ fun ChatMessageCard(
                         citations.forEach { cit ->
                             SearchCitationCard(
                                 citation = cit,
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                modifier = Modifier.padding(bottom = 6.dp),
+                                onOpenUrl = onOpenCitationUrl
                             )
                         }
                     }
@@ -1337,7 +1340,8 @@ fun LiveStreamingMessageCard(
                 liveCitations.forEach { cit ->
                     SearchCitationCard(
                         citation = cit,
-                        modifier = Modifier.padding(bottom = 6.dp)
+                        modifier = Modifier.padding(bottom = 6.dp),
+                        onOpenUrl = { viewModel.openBrowserWithUrl(it) }
                     )
                 }
             }

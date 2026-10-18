@@ -11,12 +11,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,14 +34,26 @@ import kotlin.math.sin
 @Composable
 fun GlassPanel(
     modifier: Modifier = Modifier,
+    blurAlpha: Float = 0.7f,
+    cornerRadius: Float = 16f,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(GlassCardPanel)
-            .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp)),
-        color = Color.Transparent
+            .clip(RoundedCornerShape(cornerRadius.dp))
+            .background(GlassCardPanel.copy(alpha = blurAlpha))
+            .border(
+                width = 0.8.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.15f),
+                        Color.White.copy(alpha = 0.05f)
+                    )
+                ),
+                shape = RoundedCornerShape(cornerRadius.dp)
+            ),
+        color = Color.Transparent,
+        shadowElevation = 4.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -52,7 +66,8 @@ fun GlassPanel(
 @Composable
 fun FunctionalTag(
     text: String,
-    variant: TagVariant = TagVariant.INFO_BLUE
+    variant: TagVariant = TagVariant.INFO_BLUE,
+    modifier: Modifier = Modifier
 ) {
     val (bg, textColor) = when (variant) {
         TagVariant.INFO_BLUE -> LuminousBlue.copy(alpha = 0.15f) to LuminousBlue
@@ -63,16 +78,17 @@ fun FunctionalTag(
     }
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(8.dp),
         color = bg,
-        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, textColor.copy(alpha = 0.3f)),
+        modifier = modifier.padding(horizontal = 2.dp, vertical = 2.dp)
     ) {
         Text(
             text = text,
             color = textColor,
-            fontSize = 10.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }
@@ -104,7 +120,7 @@ fun QuickSelectCircularMenu(
     )
 
     val segmentIcons = listOf(
-        Icons.Default.Chat,
+        Icons.AutoMirrored.Filled.Chat,
         Icons.Default.Api,
         Icons.Default.Hub,
         Icons.Default.Memory,

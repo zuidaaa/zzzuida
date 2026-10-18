@@ -20,9 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -146,6 +143,8 @@ fun MainAppLayout(viewModel: MainViewModel, onSignInClick: () -> Unit = {}) {
                 4 -> ConversationsHistoryScreen(viewModel = viewModel, uiState = uiState, conversations = conversations)
                 5 -> ResearchTuningScreen(viewModel = viewModel, uiState = uiState)
                 6 -> FolderFoundationScreen(viewModel = viewModel, uiState = uiState)
+                7 -> WebBrowserScreen(viewModel = viewModel, uiState = uiState)
+                8 -> ChainOfThoughtLabScreen(viewModel = viewModel, uiState = uiState)
                 else -> ChatScreen(viewModel = viewModel, uiState = uiState, messages = messages)
             }
         }
@@ -223,6 +222,7 @@ fun MainAppLayout(viewModel: MainViewModel, onSignInClick: () -> Unit = {}) {
                         }
                     }
                     HeaderActionIcon(Icons.Default.Add) { /* New Chat */ }
+                    HeaderActionIcon(Icons.Default.Language) { viewModel.setActiveTab(7) }
                     HeaderActionIcon(text = "🤗") { viewModel.openHfMcpConnector() }
                     HeaderActionIcon(Icons.Default.DirectionsCar) { viewModel.openDrivingMode() }
                     HeaderActionIcon(Icons.Default.AutoAwesome) { viewModel.openOneUi9Center() }
@@ -369,6 +369,12 @@ fun EdgePanelContent(viewModel: MainViewModel, uiState: UiState, onSettingsClick
         }
         NavigationItem("3-Folder Foundation", Icons.Default.FolderSpecial, uiState.activeTab == 6) { 
             viewModel.setActiveTab(6); viewModel.toggleEdgePanel() 
+        }
+        NavigationItem("AI Web Browser & Research", Icons.Default.Language, uiState.activeTab == 7) { 
+            viewModel.setActiveTab(7); viewModel.toggleEdgePanel() 
+        }
+        NavigationItem("Chain-of-Thought Lab", Icons.Default.PsychologyAlt, uiState.activeTab == 8) { 
+            viewModel.setActiveTab(8); viewModel.toggleEdgePanel() 
         }
         
         Spacer(modifier = Modifier.height(32.dp))

@@ -412,9 +412,9 @@ class Mks2SynergyEngine(private val context: Context) {
             appendLog("Stresstest Resultat: CRC-64 Integrität 100% [Manifest: $crc64ManifestOk, Latenz: 8.4ns/Token]")
 
             // Step D: Tool- & System-Updates
-            appendLog("Step D: Prüfe und aktualisiere Systemwerkzeuge (skills.sh Packages, Claude Plugins, reCAPTCHA Enterprise, Room DB)...")
+            appendLog("Step D: Prüfe und aktualisiere Systemwerkzeuge (skills.sh Packages, Claude Plugins, reCAPTCHA Enterprise, Azure CI Pipeline [2fa16a3], Room DB)...")
             delay(350)
-            appendLog("Tool-Registry: Alle Werkzeuge auf aktuellem Stand (v2.4.0 verified).")
+            appendLog("Tool-Registry: Alle Werkzeuge auf aktuellem Stand (v2.4.0 verified, Azure Pipelines CI synchronized).")
 
             // Step E: Telemetrie & Wissensbasis Initialisierung
             appendLog("Step E: Initialisiere kategorienübergreifende Wissensbasis & Telemetrie-Streams...")

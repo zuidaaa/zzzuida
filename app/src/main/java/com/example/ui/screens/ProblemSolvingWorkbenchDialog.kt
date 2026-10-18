@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -456,7 +456,7 @@ fun ProblemSolvingWorkbenchDialog(
                                             colors = ButtonDefaults.outlinedButtonColors(containerColor = DarkSurface),
                                             border = BorderStroke(1.dp, GeminiBlueLight.copy(alpha = 0.6f))
                                         ) {
-                                            Icon(Icons.Default.AltRoute, contentDescription = null, tint = GeminiBlueLight, modifier = Modifier.size(15.dp))
+                                            Icon(Icons.AutoMirrored.Filled.AltRoute, contentDescription = null, tint = GeminiBlueLight, modifier = Modifier.size(15.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
                                                 text = "Approaches",
@@ -730,7 +730,7 @@ private fun ProblemStatementContent(
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Rule, contentDescription = null, tint = GeminiAmber, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.Rule, contentDescription = null, tint = GeminiAmber, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Formal Constraints & Bounds",
@@ -809,7 +809,7 @@ private fun ProblemStatementContent(
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.FactCheck, contentDescription = null, tint = GeminiEmerald, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, tint = GeminiEmerald, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Verification Invariant Checklist",

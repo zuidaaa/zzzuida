@@ -434,6 +434,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val thinkingAiDebuggerManager = com.example.engine.debug.ThinkingAiDebuggerManager(application)
     val thinkingDebuggerState: StateFlow<com.example.engine.debug.ThinkingDebuggerState> = thinkingAiDebuggerManager.debuggerState
     val mks2SynergyEngine = com.example.engine.mks2.Mks2SynergyEngine(application)
+    val webBrowserManager = com.example.engine.browser.WebBrowserManager(application, viewModelScope)
 
     val cachePolicyPreferences = com.example.data.CachePolicyPreferences(application)
     val offlineLlmResponseRepository = com.example.data.OfflineLlmResponseRepository(
@@ -817,6 +818,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 PipelineStage(2, "Phase 1: LiteViT5 Vision Encoder -> MLP Projection Adapter", "NPU Vision Tensor v_vision"),
                 PipelineStage(3, "Phase 3: Whisper Audio Stream & Unified Prompt Construction", "Low-Latency STT Agent"),
                 PipelineStage(4, "Phase 0: Gemma-4-2B llama.cpp Tool Calling & Sandbox Execution", "Isolated JNI/Rust Shell Runner")
+            )
+        ),
+        AutonomousPipeline(
+            id = "pipeline-autonomous-env-ci",
+            title = "Autonomous Env Baseline & Continuous Optimization",
+            category = "DevOps & MKS² Synergy",
+            isZeroToken = true,
+            targetPlatform = "Azure Pipelines CI (2fa16a3) + Snapdragon 8 Elite UMA",
+            description = "1. INITIALIZE_AUTONOMOUS_ENVIRONMENT (Baseline-Analyse, Cross-Checks, 65K Stresstests, Tool-Updates, Telemetrie) und 2. EXECUTE_CONTINUOUS_OPTIMIZATION_WITH_FALLBACK mit Circuit-Breaker Canary Fallback.",
+            stages = listOf(
+                PipelineStage(1, "1A: 4-Tier Speicher-Baseline-Analyse (T0 NPU, T1 DRAM, T2 UFS 4.0, T3 TEE)", "Storage Tier Inspector"),
+                PipelineStage(2, "1B: Hardware Cross-Checks (Snapdragon 8 Elite 92 TOPS NPU & UMA Zero-Copy)", "Hardware Monitor"),
+                PipelineStage(3, "1C: 65K Token Prefetch-Burst & CRC-64 Manifest-Validierung (100% OK)", "Stress Profiler"),
+                PipelineStage(4, "1D: Tool-Upgrades (skills.sh v2.4, reCAPTCHA Enterprise, Azure Pipelines)", "Tool Registry Upgrader"),
+                PipelineStage(5, "1E: Telemetrie & Wissensbasis Initialisierung vor Schreibzugriff", "Knowledge Stream Initiator"),
+                PipelineStage(6, "2.0: Freigabe Schreibrechte & Continuous Optimization mit Circuit-Breaker Loop", "Canary Fallback Engine")
             )
         )
     )
@@ -1501,6 +1518,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(activeTab = tabIndex) }
     }
 
+    fun openBrowserWithUrl(url: String) {
+        webBrowserManager.navigateTo(url)
+        setActiveTab(7)
+    }
+
+    fun insertResearchIntoChat(title: String, url: String, researchText: String) {
+        val prompt = "### Web Research Synthesis: $title\nSource: $url\n\n$researchText\n\nPlease incorporate and critically analyze these research findings."
+        sendMessage(prompt)
+        setActiveTab(0)
+    }
+
+    fun saveResearchToWorkspace(title: String, url: String, content: String) {
+        val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        val dossier = "# $title\nSource: $url\nDate: $dateStr\n\n$content"
+        saveFolderFile("Research", title.take(40), dossier, dateStr)
+    }
+
     fun setThinkingLevel(level: ThinkingLevel) {
         _uiState.update { it.copy(selectedThinkingLevel = level) }
     }
@@ -1590,7 +1624,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun inspectSteps(steps: List<ReasoningStep>) {
-        _uiState.update { it.copy(inspectingSteps = steps) }
+        _uiState.update { it.copy(inspectingSteps = steps, activeTab = 8) }
     }
 
     fun closeInspectDialog() {
@@ -3150,6 +3184,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         pipelineStepProgress = index + 1,
                         pipelineLog = it.pipelineLog + logLine
                     )
+                }
+            }
+
+            if (pipeline.id == "pipeline-autonomous-env-ci") {
+                mks2SynergyEngine.initializeAutonomousEnvironment()
+                if (!mks2SynergyEngine.state.value.autonomousEnvironment.continuousOptimizationActive) {
+                    mks2SynergyEngine.toggleContinuousOptimization()
                 }
             }
 

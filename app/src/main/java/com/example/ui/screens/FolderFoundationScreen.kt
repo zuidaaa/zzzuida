@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -118,7 +119,7 @@ fun FolderFoundationScreen(
                 edgePadding = 0.dp,
                 indicator = { tabPositions ->
                     val idx = allFolders.indexOf(selectedFolder).coerceAtLeast(0)
-                    TabRowDefaults.Indicator(
+                    TabRowDefaults.SecondaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[idx]),
                         color = LuminousBlue
                     )
@@ -315,7 +316,7 @@ fun FolderFileCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Box {
                         IconButton(onClick = { showMoveMenu = true }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.DriveFileMove, contentDescription = "Move To", tint = VibrantTeal, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move To", tint = VibrantTeal, modifier = Modifier.size(16.dp))
                         }
                         DropdownMenu(
                             expanded = showMoveMenu,

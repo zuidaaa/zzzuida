@@ -497,7 +497,7 @@ fun ThinkingAiDebuggerScreen(
                         // Expanded Segment Content
                         if (isExpanded && telemetry != null) {
                             Spacer(modifier = Modifier.height(14.dp))
-                            Divider(color = DarkSurfaceVariant, thickness = 0.8.dp)
+                            HorizontalDivider(color = DarkSurfaceVariant, thickness = 0.8.dp)
                             Spacer(modifier = Modifier.height(12.dp))
 
                             // Details Map

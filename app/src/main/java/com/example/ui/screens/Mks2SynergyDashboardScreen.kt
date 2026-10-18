@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -127,7 +128,7 @@ fun Mks2SynergyDashboardScreen(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 modifier = Modifier.weight(1f).testTag("mks2_init_env_btn")
             ) {
-                Icon(imageVector = Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(13.dp))
+                Icon(imageVector = Icons.AutoMirrored.Filled.FactCheck, contentDescription = null, modifier = Modifier.size(13.dp))
                 Spacer(modifier = Modifier.width(3.dp))
                 Text("1. Init Umfeld", fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
@@ -1107,7 +1108,7 @@ fun AutonomousEnvironmentTabCard(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.FactCheck,
+                            imageVector = Icons.AutoMirrored.Filled.FactCheck,
                             contentDescription = null,
                             tint = if (autoState.baselineValidated) VerificationGreen else LuminousYellow,
                             modifier = Modifier.size(22.dp)

@@ -48,7 +48,8 @@ import com.example.ui.theme.GeminiEmerald
 @Composable
 fun SearchCitationCard(
     citation: SearchCitation,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenUrl: ((String) -> Unit)? = null
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -56,7 +57,13 @@ fun SearchCitationCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable { isExpanded = !isExpanded }
+            .clickable {
+                if (citation.url.isNotBlank() && onOpenUrl != null) {
+                    onOpenUrl(citation.url)
+                } else {
+                    isExpanded = !isExpanded
+                }
+            }
             .testTag("search_citation_card"),
         colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant.copy(alpha = 0.8f)),
         shape = RoundedCornerShape(12.dp),

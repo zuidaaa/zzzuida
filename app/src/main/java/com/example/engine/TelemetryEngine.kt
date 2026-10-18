@@ -5,6 +5,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+data class LlmPerformancePoint(
+    val timestamp: Long = System.currentTimeMillis(),
+    val latencyMs: Long,
+    val tokensPerSec: Float,
+    val agent: String
+)
+
 data class TelemetryState(
     val totalRequests: Int = 0,
     val totalLatencyMs: Long = 0L,
@@ -13,7 +20,8 @@ data class TelemetryState(
     val activeAgent: String = "DEFAULT",
     val cpuGovernor: String = "Schedutil",
     val npuThermals: String = "34.5°C",
-    val memoryBudgetAvailableMb: Long = 512L
+    val memoryBudgetAvailableMb: Long = 512L,
+    val performanceHistory: List<LlmPerformancePoint> = emptyList()
 )
 
 /**
@@ -118,13 +126,21 @@ object TelemetryEngine {
     }
 
     fun recordMetrics(latencyMs: Long, tokens: Int, isCacheHit: Boolean, agent: String) {
+        val tps = if (latencyMs > 0) (tokens.toFloat() / (latencyMs / 1000f)) else 0f
+        val point = LlmPerformancePoint(
+            latencyMs = latencyMs,
+            tokensPerSec = tps,
+            agent = agent
+        )
+        
         _state.update { current ->
             current.copy(
                 totalRequests = current.totalRequests + 1,
                 totalLatencyMs = current.totalLatencyMs + latencyMs,
                 totalTokens = current.totalTokens + tokens,
                 cacheHits = current.cacheHits + if (isCacheHit) 1 else 0,
-                activeAgent = agent
+                activeAgent = agent,
+                performanceHistory = (current.performanceHistory + point).takeLast(50)
             )
         }
     }

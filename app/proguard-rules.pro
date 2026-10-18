@@ -25,3 +25,27 @@
 -keep class com.example.engine.StructuredPlant { *; }
 -keep class com.example.engine.Plant { *; }
 
+# Preserve Moshi Json adapters and annotated models
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keep @com.squareup.moshi.JsonClass class * { *; }
+-keep class com.example.engine.** { *; }
+-keep class com.example.engine.browser.** { *; }
+-keep class com.example.data.** { *; }
+
+# Preserve Retrofit interfaces and methods
+-keepattributes EnclosingMethod
+-keepclassmembers,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+
+# Preserve Room Database and Entities
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+
+# WebView Javascript Interface & WebChromeClient
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+

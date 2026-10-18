@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -582,7 +583,7 @@ private fun AutopilotBrowserSection(viewModel: MainViewModel, uiState: UiState) 
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Autopilot Navigating & Executing...", color = Color.Black, fontWeight = FontWeight.Bold)
                         } else {
-                            Icon(Icons.Default.Launch, contentDescription = null, tint = Color.Black)
+                            Icon(Icons.AutoMirrored.Filled.Launch, contentDescription = null, tint = Color.Black)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Launch Autonomous Browser Session", color = Color.Black, fontWeight = FontWeight.Bold)
                         }
@@ -1340,7 +1341,7 @@ private fun LLMWikiSection(
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = VibrantTeal),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
                             ) {
-                                Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(12.dp))
+                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(12.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("NotebookLM", fontSize = 10.sp)
                             }
@@ -1547,7 +1548,7 @@ private fun LLMWikiSection(
                                     }
                                     for (i in 0 until links.length()) {
                                         val linkedNode = links.optString(i, "Linked Node")
-                                        val nodeLabel = linkedNode.replace("wiki-", "").replace("-", " ").capitalize()
+                                        val nodeLabel = linkedNode.replace("wiki-", "").replace("-", " ").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))

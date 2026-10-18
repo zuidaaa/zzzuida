@@ -30,7 +30,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.ShortText
+import androidx.compose.material.icons.automirrored.filled.ShortText
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -187,7 +187,7 @@ fun ThinkingControlsBar(
                         Triple("General Assistant", "Assistant", Icons.Default.AutoAwesome),
                         Triple("Coding Architect", "Architect", Icons.Default.Code),
                         Triple("Research Scientist", "Scientist", Icons.Default.Science),
-                        Triple("Fast Summarizer", "Summarizer", Icons.Default.ShortText),
+                        Triple("Fast Summarizer", "Summarizer", Icons.AutoMirrored.Filled.ShortText),
                         Triple("Creative Writer", "Creative", Icons.Default.Psychology)
                     )
 

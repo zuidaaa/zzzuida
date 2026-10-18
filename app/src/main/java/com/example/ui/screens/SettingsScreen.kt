@@ -34,7 +34,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Download
@@ -1557,7 +1557,7 @@ fun SettingsScreen(
                                             )
                                             if (item.hasUpdate) {
                                                 Icon(
-                                                    imageVector = Icons.Default.ArrowForward,
+                                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                                     contentDescription = null,
                                                     tint = GeminiEmerald,
                                                     modifier = Modifier.size(10.dp).padding(horizontal = 2.dp)
@@ -1638,7 +1638,7 @@ fun SettingsScreen(
                                 if (item.isUpgrading) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     LinearProgressIndicator(
-                                        progress = item.upgradeProgress,
+                                        progress = { item.upgradeProgress },
                                         modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                                         color = GeminiBlue,
                                         trackColor = DarkOutline

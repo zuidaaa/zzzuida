@@ -1,6 +1,6 @@
 {
   "name": "T#ink insid3 the b0x",
-  "description": "Offline LLM deep thinking engine with multi-domain interactive problem-solving, D3.js reasoning & token usage telemetry, chain-of-thought debugger, and Room SQLite proof cache.",
+  "description": "Autonomous LLM thinking engine with integrated AI web research, multi-domain problem-solving, D3.js telemetry, CoT debugger, and native download manager.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
