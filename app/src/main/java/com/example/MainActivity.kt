@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private lateinit var auth: FirebaseAuth
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,23 +74,36 @@ class MainActivity : ComponentActivity() {
         setContent {
             val systemDark = isSystemInDarkTheme()
             MyApplicationTheme(darkTheme = systemDark) {
-                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                if (uiState.isLoggedIn) {
-                    MainAppLayout(viewModel = viewModel)
-                } else {
-                    SignInScreen(
-                        onSignInClick = { viewModel.performSignIn(this@MainActivity) },
-                        isAuthenticating = uiState.isAuthenticating,
-                        errorMessage = uiState.authStatusMessage
-                    )
-                }
+                MainAppLayout(
+                    viewModel = viewModel,
+                    onSignInClick = { viewModel.performSignIn(this@MainActivity) }
+                )
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Check if user is signed in (non-null) and update UI/ViewModel
+        val currentUser = auth.currentUser
+        viewModel.onFirebaseAuthStateChanged(currentUser)
+
+        // Reactive AuthStateListener synced with ViewModel state
+        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            viewModel.onFirebaseAuthStateChanged(firebaseAuth.currentUser)
+        }
+        authStateListener = listener
+        auth.addAuthStateListener(listener)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        authStateListener?.let { auth.removeAuthStateListener(it) }
     }
 }
 
 @Composable
-fun MainAppLayout(viewModel: MainViewModel) {
+fun MainAppLayout(viewModel: MainViewModel, onSignInClick: () -> Unit = {}) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val messages by viewModel.currentMessages.collectAsStateWithLifecycle()
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
@@ -114,12 +129,14 @@ fun MainAppLayout(viewModel: MainViewModel) {
         )
     }
 
+    val contentTopPadding = if (!uiState.isLoggedIn) 116.dp else 64.dp
+
     Box(modifier = Modifier.fillMaxSize().background(AbsoluteBlack)) {
-        // CONTENT CONTAINER (Margin Top 64, Right 64)
+        // CONTENT CONTAINER (Margin Top 64 or 116 for banner, Right 64)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 64.dp, end = 64.dp)
+                .padding(top = contentTopPadding, end = 64.dp)
         ) {
             when (uiState.activeTab) {
                 0 -> ChatScreen(viewModel = viewModel, uiState = uiState, messages = messages)
@@ -139,7 +156,7 @@ fun MainAppLayout(viewModel: MainViewModel) {
                 .fillMaxWidth()
                 .height(64.dp)
                 .background(Color(0xCC161B22)) // rgba(22, 27, 34, 0.8)
-                .blur(10.dp) // Simulated backdrop blur (note: real blur is expensive, but spec asks for it)
+                .blur(10.dp) // Simulated backdrop blur
                 .border(bottom = 1.dp, color = BorderSubtle)
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart
@@ -175,6 +192,36 @@ fun MainAppLayout(viewModel: MainViewModel) {
 
                 // Right Group
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (uiState.isLoggedIn) {
+                        Surface(
+                            color = Color(0x2222C55E),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0x5522C55E)),
+                            modifier = Modifier
+                                .testTag("header_sync_badge")
+                                .padding(end = 8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(VibrantGreen)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = uiState.loggedInUserName ?: "Synced",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = VibrantGreen,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
                     HeaderActionIcon(Icons.Default.Add) { /* New Chat */ }
                     HeaderActionIcon(text = "🤗") { viewModel.openHfMcpConnector() }
                     HeaderActionIcon(Icons.Default.DirectionsCar) { viewModel.openDrivingMode() }
@@ -183,6 +230,19 @@ fun MainAppLayout(viewModel: MainViewModel) {
                     HeaderActionIcon(Icons.Default.Settings) { showSettingsModal = true }
                 }
             }
+        }
+
+        // GUEST AUTH BANNER (when unauthenticated, placed right below Header)
+        if (!uiState.isLoggedIn) {
+            GuestAuthBanner(
+                isAuthenticating = uiState.isAuthenticating,
+                statusMessage = uiState.authStatusMessage,
+                onSignInClick = onSignInClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopStart)
+                    .padding(top = 64.dp, end = 64.dp)
+            )
         }
 
         // ACTION SIDEBAR RIGHT GLOBAL (Width 64)
@@ -400,3 +460,94 @@ fun Modifier.border(
         }
     }
 )
+
+@Composable
+fun GuestAuthBanner(
+    isAuthenticating: Boolean,
+    statusMessage: String?,
+    onSignInClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.testTag("guest_auth_banner"),
+        color = Color(0xF2161B22),
+        border = BorderStroke(1.dp, Color(0x55F59E0B))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(LuminousYellow)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Offline Guest Mode Active",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = statusMessage ?: "Local LLM, MKS² & Room cache active • Sign in to sync Cloud Vault",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Button(
+                onClick = onSignInClick,
+                enabled = !isAuthenticating,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LuminousBlue,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .testTag("guest_banner_sign_in_button")
+                    .height(36.dp)
+            ) {
+                if (isAuthenticating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Connecting...",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Sign In with Google",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Sign In",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+

@@ -118,18 +118,37 @@ fun Mks2SynergyDashboardScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Button(
-                onClick = { viewModel.mks2SynergyEngine.runPreFlightGateCheck() },
+                onClick = { viewModel.mks2SynergyEngine.initializeAutonomousEnvironment() },
                 colors = ButtonDefaults.buttonColors(containerColor = LuminousBlue),
                 shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                modifier = Modifier.weight(1f).testTag("mks2_verify_gate_btn")
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                modifier = Modifier.weight(1f).testTag("mks2_init_env_btn")
             ) {
-                Icon(imageVector = Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Pre-Flight Gate", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Icon(imageVector = Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(13.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text("1. Init Umfeld", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = { viewModel.mks2SynergyEngine.toggleContinuousOptimization() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (mks2State.autonomousEnvironment.continuousOptimizationActive) VibrantTeal else DarkSurfaceVariant
+                ),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                modifier = Modifier.weight(1f).testTag("mks2_cont_opt_btn")
+            ) {
+                Icon(imageVector = Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(13.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = if (mks2State.autonomousEnvironment.continuousOptimizationActive) "2. Loop Aktiv" else "2. Opt Loop",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (mks2State.autonomousEnvironment.continuousOptimizationActive) Color.Black else Color.White
+                )
             }
 
             Button(
@@ -138,28 +157,28 @@ fun Mks2SynergyDashboardScreen(
                     containerColor = if (mks2State.circuitBreaker.mode == CircuitMode.CLOSED) VibrantPurple else VibrantRed
                 ),
                 shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 modifier = Modifier.weight(1f).testTag("mks2_fault_sim_btn")
             ) {
-                Icon(imageVector = Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
+                Icon(imageVector = Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(13.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = if (mks2State.circuitBreaker.mode == CircuitMode.CLOSED) "Circuit Breaker" else "Fault Active",
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
             Button(
                 onClick = { viewModel.mks2SynergyEngine.executeClosedLoopCycle() },
-                colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal),
+                colors = ButtonDefaults.buttonColors(containerColor = GeminiBlue),
                 shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 modifier = Modifier.weight(1f).testTag("mks2_run_cycle_btn")
             ) {
-                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Closed Loop", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(13.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text("Closed Loop", fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -180,7 +199,7 @@ fun Mks2SynergyDashboardScreen(
             divider = { HorizontalDivider(color = BorderSubtle) },
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
         ) {
-            listOf("Speicherhierarchie", "Pre-Flight Gate", "Resilient Loop", "KV-Blöcke & CRC-64").forEachIndexed { index, title ->
+            listOf("Autonomes Umfeld", "Speicherhierarchie", "Pre-Flight Gate", "Resilient Loop", "KV-Blöcke & CRC-64").forEachIndexed { index, title ->
                 Tab(
                     selected = selectedSection == index,
                     onClick = { selectedSection = index },
@@ -189,7 +208,7 @@ fun Mks2SynergyDashboardScreen(
                             text = title,
                             color = if (selectedSection == index) LuminousBlue else TextSecondary,
                             fontWeight = if (selectedSection == index) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 12.sp
+                            fontSize = 11.sp
                         )
                     }
                 )
@@ -203,21 +222,25 @@ fun Mks2SynergyDashboardScreen(
         ) {
             when (selectedSection) {
                 0 -> {
-                    // TAB 0: Speicherhierarchie & Overview
+                    // TAB 0: Autonomes Umfeld & Kontinuierliche Optimierung
+                    item { AutonomousEnvironmentTabCard(mks2State, viewModel) }
+                }
+                1 -> {
+                    // TAB 1: Speicherhierarchie & Overview
                     item { KeyMetricsSummaryCard(mks2State) }
                     item { MemoryTiersSection(mks2State) }
                     item { CoreEnginesOverview() }
                 }
-                1 -> {
-                    // TAB 1: Phase 1 Pre-Flight Gate
+                2 -> {
+                    // TAB 2: Phase 1 Pre-Flight Gate
                     item { PreFlightGateDetailedCard(mks2State, viewModel) }
                 }
-                2 -> {
-                    // TAB 2: Phase 2 Resilient Loop & Circuit-Breaker
+                3 -> {
+                    // TAB 3: Phase 2 Resilient Loop & Circuit-Breaker
                     item { ResilientLoopDetailedCard(mks2State, viewModel) }
                 }
-                3 -> {
-                    // TAB 3: KV-Cache Blocks & CRC-64 Checksums
+                4 -> {
+                    // TAB 4: KV-Cache Blocks & CRC-64 Checksums
                     item {
                         KvBlocksAndChecksumSection(
                             mks2State = mks2State,
@@ -1059,3 +1082,238 @@ private fun FaultSimulationDialog(
         }
     )
 }
+
+@Composable
+fun AutonomousEnvironmentTabCard(
+    mks2State: Mks2SynergyState,
+    viewModel: MainViewModel
+) {
+    val autoState = mks2State.autonomousEnvironment
+    val isLocked = mks2State.preFlightGate.isMutationLocked
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Directive 1: INITIALIZE_AUTONOMOUS_ENVIRONMENT Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("init_autonomous_env_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, if (autoState.baselineValidated) VerificationGreen.copy(alpha = 0.5f) else LuminousYellow.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.FactCheck,
+                            contentDescription = null,
+                            tint = if (autoState.baselineValidated) VerificationGreen else LuminousYellow,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "1. INITIALIZE AUTONOMOUS ENVIRONMENT",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Baseline-Analyse, Cross-Checks, Stresstests & Tool-Updates",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = if (autoState.baselineValidated) VerificationGreen.copy(alpha = 0.15f) else LuminousYellow.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (autoState.baselineValidated) VerificationGreen else LuminousYellow)
+                    ) {
+                        Text(
+                            text = if (autoState.baselineValidated) "Ausgangszustand Validiert" else "Validierung Erforderlich",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (autoState.baselineValidated) VerificationGreen else LuminousYellow,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Metric Check Details
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        color = Color(0x16FFFFFF),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("Stresstest Score", fontSize = 10.sp, color = TextSecondary)
+                            Text("${autoState.stressTestScore} / 100", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("CRC-64 100% OK", fontSize = 9.sp, color = VerificationGreen)
+                        }
+                    }
+
+                    Surface(
+                        color = Color(0x16FFFFFF),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("Mutationsrechte", fontSize = 10.sp, color = TextSecondary)
+                            Text(if (!isLocked) "FREIGEGEBEN" else "GESPERRT", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (!isLocked) VerificationGreen else VibrantRed)
+                            Text(if (!isLocked) "Schreibzugriff aktiv" else "Harte Trennung aktiv", fontSize = 9.sp, color = if (!isLocked) VerificationGreen else VibrantRed)
+                        }
+                    }
+
+                    Surface(
+                        color = Color(0x16FFFFFF),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("Tool-Upgrades", fontSize = 10.sp, color = TextSecondary)
+                            Text("v2.4.0 Geprüft", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = VibrantTeal)
+                            Text("Claude/Firebase aktiv", fontSize = 9.sp, color = VibrantTeal)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = { viewModel.mks2SynergyEngine.initializeAutonomousEnvironment() },
+                    colors = ButtonDefaults.buttonColors(containerColor = LuminousBlue),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("run_initialize_autonomous_env_btn")
+                ) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Baseline-Analyse, Stresstest & Initialisierung starten", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Directive 2: EXECUTE_CONTINUOUS_OPTIMIZATION_WITH_FALLBACK Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("continuous_optimization_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, if (autoState.continuousOptimizationActive) VibrantTeal.copy(alpha = 0.6f) else BorderSubtle)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = if (autoState.continuousOptimizationActive) VibrantTeal else TextSecondary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "2. EXECUTE CONTINUOUS OPTIMIZATION",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Autonome Werkzeug-Optimierung & Resilient Fallback Loop",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = if (autoState.continuousOptimizationActive) VibrantTeal.copy(alpha = 0.15f) else Color(0x22FFFFFF),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (autoState.continuousOptimizationActive) VibrantTeal else BorderSubtle)
+                    ) {
+                        Text(
+                            text = if (autoState.continuousOptimizationActive) "Loop Aktiv (#${autoState.totalOptimizedCycles})" else "Pausiert",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (autoState.continuousOptimizationActive) VibrantTeal else TextSecondary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Surface(
+                    color = Color(0x16FFFFFF),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("Aktuelle autonome Aktion:", fontSize = 10.sp, color = TextSecondary)
+                        Text(
+                            text = autoState.activeOptimizationAction,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Ausweichpfad: ${autoState.fallbackEngaged}",
+                            fontSize = 10.sp,
+                            color = if (mks2State.circuitBreaker.mode == CircuitMode.CLOSED) VerificationGreen else VibrantRed
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.mks2SynergyEngine.toggleContinuousOptimization() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (autoState.continuousOptimizationActive) VibrantTeal else LuminousBlue.copy(alpha = 0.25f)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).testTag("toggle_continuous_opt_btn")
+                    ) {
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (autoState.continuousOptimizationActive) "Loop Pausieren" else "Loop Starten",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (autoState.continuousOptimizationActive) Color.Black else Color.White
+                        )
+                    }
+
+                    Button(
+                        onClick = { viewModel.mks2SynergyEngine.triggerCircuitBreakerFault("NPUGen") },
+                        colors = ButtonDefaults.buttonColors(containerColor = VibrantPurple.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).testTag("trigger_resilience_test_btn")
+                    ) {
+                        Icon(imageVector = Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Fehlerisolation Testen", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+

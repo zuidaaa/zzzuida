@@ -105,28 +105,32 @@ fun SkillsCliTab(
                         color = DarkTextMuted
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(
-                            "npx skills add supabase/database-architect",
-                            "npx skills add huggingface/deep-research"
-                        ).forEach { cmd ->
-                            Surface(
-                                color = DarkSurfaceHigh,
-                                shape = RoundedCornerShape(6.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { onCliInputChange(cmd) }
-                            ) {
-                                Text(
-                                    text = cmd.substringAfter("add "),
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = DeepThinkCyan,
-                                    modifier = Modifier.padding(6.dp)
-                                )
+                    listOf(
+                        "claude plugin marketplace add firebase/agent-skills",
+                        "claude plugin install firebase@firebase",
+                        "npx skills add supabase/database-architect",
+                        "npx skills add huggingface/deep-research"
+                    ).chunked(2).forEach { rowCmds ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            rowCmds.forEach { cmd ->
+                                Surface(
+                                    color = DarkSurfaceHigh,
+                                    shape = RoundedCornerShape(6.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onCliInputChange(cmd) }
+                                ) {
+                                    Text(
+                                        text = if (cmd.startsWith("claude")) cmd.removePrefix("claude plugin ") else cmd.substringAfter("add "),
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = DeepThinkCyan,
+                                        modifier = Modifier.padding(6.dp)
+                                    )
+                                }
                             }
                         }
                     }

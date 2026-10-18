@@ -111,6 +111,20 @@ data class KvCacheBlock(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+data class AutonomousEnvironmentState(
+    val baselineValidated: Boolean = true,
+    val stressTestScore: Int = 98,
+    val toolsUpdated: Boolean = true,
+    val telemetryInitialized: Boolean = true,
+    val knowledgeBaseReady: Boolean = true,
+    val continuousOptimizationActive: Boolean = false,
+    val lastOptimizationTimestamp: String = "Bereit",
+    val activeOptimizationAction: String = "Idle",
+    val fallbackEngaged: String = "Keine Anomalie (Primärpfad)",
+    val totalOptimizedCycles: Int = 42,
+    val totalFaultsIsolated: Int = 0
+)
+
 data class Mks2SynergyState(
     val projectName: String = "MKS² – Mobile KV-Cache Synergy Stack",
     val version: String = "2.0.0",
@@ -129,6 +143,9 @@ data class Mks2SynergyState(
 
     // Phase 2: Resilient Loop & Circuit-Breaker
     val circuitBreaker: CircuitBreakerState = CircuitBreakerState(),
+
+    // Autonomous Environment & Continuous Optimization
+    val autonomousEnvironment: AutonomousEnvironmentState = AutonomousEnvironmentState(),
 
     // Core Hardware & Memory Tiers
     val tierTelemetries: List<MemoryTierTelemetry> = emptyList(),

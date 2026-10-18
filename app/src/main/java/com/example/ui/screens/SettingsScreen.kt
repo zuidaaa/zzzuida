@@ -196,6 +196,51 @@ fun SettingsScreen(
         var showButtonMappingDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
         var showDebuggerDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
         var showMks2Dialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        var showCacheTtlDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        var showRecaptchaDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+        if (showCacheTtlDialog) {
+            AlertDialog(
+                onDismissRequest = { showCacheTtlDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showCacheTtlDialog = false }) {
+                        Text("Schließen", fontWeight = FontWeight.Bold, color = GeminiBlueLight)
+                    }
+                },
+                text = {
+                    Box(modifier = Modifier.fillMaxSize(0.95f)) {
+                        CacheTtlSettingsScreen(
+                            viewModel = viewModel,
+                            onBack = { showCacheTtlDialog = false }
+                        )
+                    }
+                },
+                containerColor = DarkBackground,
+                modifier = Modifier.fillMaxSize(0.95f)
+            )
+        }
+
+        if (showRecaptchaDialog) {
+            AlertDialog(
+                onDismissRequest = { showRecaptchaDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showRecaptchaDialog = false }) {
+                        Text("Schließen", fontWeight = FontWeight.Bold, color = GeminiBlueLight)
+                    }
+                },
+                text = {
+                    Box(modifier = Modifier.fillMaxSize(0.95f)) {
+                        RecaptchaEnterpriseScreen(
+                            viewModel = viewModel,
+                            uiState = uiState,
+                            onBack = { showRecaptchaDialog = false }
+                        )
+                    }
+                },
+                containerColor = DarkBackground,
+                modifier = Modifier.fillMaxSize(0.95f)
+            )
+        }
 
         if (showMks2Dialog) {
             AlertDialog(
@@ -510,6 +555,104 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("open_mks2_stack_btn")
                     ) {
                         Text("Stack Öffnen", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Room Offline Cache & TTL Expiration Policy Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("cache_ttl_policy_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, LuminousBlue.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Speed,
+                            contentDescription = null,
+                            tint = LuminousBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Offline Cache & TTL-Ablaufrichtlinie",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Room SQLite Persistenz • Aufbewahrung (1d/7d/30d/Permanent)",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { showCacheTtlDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = LuminousBlue.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("open_cache_ttl_btn")
+                    ) {
+                        Text("Konfigurieren", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Google reCAPTCHA Enterprise Security Card
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("recaptcha_enterprise_card"),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, VibrantTeal.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = VibrantTeal,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Google reCAPTCHA Enterprise",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Risikobewertung für Sign-In & Cloud Sync • Passiver Audit-Modus",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { showRecaptchaDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = VibrantTeal.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("open_recaptcha_btn")
+                    ) {
+                        Text("Verwalten", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }

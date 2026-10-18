@@ -313,6 +313,13 @@ data class UiState(
     val authStatusMessage: String? = null,
     val isAuthenticating: Boolean = false,
 
+    // Google reCAPTCHA Enterprise Assessment State
+    val recaptchaSettings: com.example.security.recaptcha.RecaptchaSettings = com.example.security.recaptcha.RecaptchaSettings(),
+    val recaptchaTelemetryLogs: List<com.example.security.recaptcha.RecaptchaTelemetryEntry> = emptyList(),
+    val isEvaluatingRecaptcha: Boolean = false,
+    val lastRecaptchaScore: Float? = null,
+    val lastRecaptchaStatus: String? = null,
+
     // Local Documents & Backup RAG State
     val localDocuments: List<com.example.data.DocumentEntity> = emptyList(),
     val isImportExportActive: Boolean = false,
@@ -427,6 +434,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val thinkingAiDebuggerManager = com.example.engine.debug.ThinkingAiDebuggerManager(application)
     val thinkingDebuggerState: StateFlow<com.example.engine.debug.ThinkingDebuggerState> = thinkingAiDebuggerManager.debuggerState
     val mks2SynergyEngine = com.example.engine.mks2.Mks2SynergyEngine(application)
+
+    val cachePolicyPreferences = com.example.data.CachePolicyPreferences(application)
+    val offlineLlmResponseRepository = com.example.data.OfflineLlmResponseRepository(
+        database.offlineLlmResponseCacheDao(),
+        cachePolicyPreferences
+    )
+    val cachePolicyState: StateFlow<com.example.data.CachePolicyState> = cachePolicyPreferences.state
+    val offlineCachedResponses: StateFlow<List<com.example.data.OfflineLlmResponseCacheEntity>> = offlineLlmResponseRepository.allResponses
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val offlineCacheTotalCount: StateFlow<Int> = offlineLlmResponseRepository.totalCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val offlineCachePinnedCount: StateFlow<Int> = offlineLlmResponseRepository.pinnedCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val offlineCacheTrainingCount: StateFlow<Int> = offlineLlmResponseRepository.trainingCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val offlineCacheExpiredCount: StateFlow<Int> = offlineLlmResponseRepository.getExpiredCountFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private val ollamaClient = OllamaClient()
     private val llmApiClient = UniversalLlmApiClient()
@@ -799,6 +823,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val firebaseRepository = FirebaseRepository(application)
     private val authManager = AuthManager(application)
+    private val recaptchaClient = com.example.security.recaptcha.RecaptchaEnterpriseClient()
 
     init {
         hardwareMonitorManager.startMonitoring()
@@ -812,6 +837,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.initDefaultKnowledgeSourcesIfEmpty()
             repository.initDefaultWebWatchersIfEmpty()
             repository.initDefaultWikiPagesIfEmpty()
+            offlineLlmResponseRepository.applyLaunchCleanupIfEnabled()
         }
 
         viewModelScope.launch {
@@ -1254,17 +1280,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         hapticCallback?.invoke()
     }
 
-    fun onFirebaseUserAuthenticated(user: com.google.firebase.auth.FirebaseUser?) {
-        _uiState.update {
-            it.copy(
-                isLoggedIn = true,
-                loggedInUserEmail = user?.email,
-                loggedInUserName = user?.displayName ?: user?.email?.substringBefore("@"),
-                isAuthenticating = false,
-                authStatusMessage = "Securely authenticated via Google Sign-In"
-            )
+    fun onFirebaseAuthStateChanged(user: com.google.firebase.auth.FirebaseUser?) {
+        if (user != null) {
+            val wasAlreadyLoggedIn = _uiState.value.isLoggedIn
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = true,
+                    loggedInUserEmail = user.email,
+                    loggedInUserName = user.displayName ?: user.email?.substringBefore("@"),
+                    isAuthenticating = false,
+                    authStatusMessage = "Authenticated as ${user.displayName ?: user.email ?: user.uid}"
+                )
+            }
+            if (!wasAlreadyLoggedIn) {
+                performCloudSync()
+            }
+        } else {
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = false,
+                    loggedInUserEmail = null,
+                    loggedInUserName = null,
+                    isAuthenticating = false,
+                    authStatusMessage = null
+                )
+            }
         }
-        performCloudSync()
+    }
+
+    fun onFirebaseUserAuthenticated(user: com.google.firebase.auth.FirebaseUser?) {
+        onFirebaseAuthStateChanged(user)
     }
 
     fun onFirebaseAuthFailed(errorMsg: String) {
@@ -1281,8 +1326,64 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         onFirebaseUserAuthenticated(user)
     }
 
+    fun evaluateRecaptchaAssessment(
+        action: String,
+        token: String? = null,
+        onComplete: ((com.example.security.recaptcha.RecaptchaTelemetryEntry) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isEvaluatingRecaptcha = true) }
+            val entry = recaptchaClient.createAssessment(action, token, _uiState.value.recaptchaSettings)
+            _uiState.update {
+                val updatedLogs = (listOf(entry) + it.recaptchaTelemetryLogs).take(50)
+                it.copy(
+                    isEvaluatingRecaptcha = false,
+                    lastRecaptchaScore = entry.score,
+                    lastRecaptchaStatus = entry.statusMessage,
+                    recaptchaTelemetryLogs = updatedLogs
+                )
+            }
+            if (entry.isSuspicious) {
+                Log.w("RecaptchaEnterprise", "SUSPICIOUS RISK SCORE [${entry.score}] detected for action $action - Reasons: ${entry.reasons}")
+            }
+            onComplete?.invoke(entry)
+        }
+    }
+
+    fun updateRecaptchaSettings(
+        projectId: String? = null,
+        siteKey: String? = null,
+        apiKeyOverride: String? = null,
+        isEnabled: Boolean? = null,
+        minScoreThreshold: Float? = null,
+        isSimulationMode: Boolean? = null
+    ) {
+        _uiState.update {
+            val current = it.recaptchaSettings
+            it.copy(
+                recaptchaSettings = current.copy(
+                    projectId = projectId ?: current.projectId,
+                    siteKey = siteKey ?: current.siteKey,
+                    apiKeyOverride = apiKeyOverride ?: current.apiKeyOverride,
+                    isEnabled = isEnabled ?: current.isEnabled,
+                    minScoreThreshold = minScoreThreshold ?: current.minScoreThreshold,
+                    isSimulationMode = isSimulationMode ?: current.isSimulationMode
+                )
+            )
+        }
+    }
+
+    fun clearRecaptchaLogs() {
+        _uiState.update { it.copy(recaptchaTelemetryLogs = emptyList()) }
+    }
+
+    fun triggerTestRecaptchaAssessment(action: String = "MANUAL_TEST") {
+        evaluateRecaptchaAssessment(action = action)
+    }
+
     fun performSignIn(activity: android.app.Activity) {
-        _uiState.update { it.copy(isAuthenticating = true, authStatusMessage = "Connecting to Google...") }
+        _uiState.update { it.copy(isAuthenticating = true, authStatusMessage = "Evaluating reCAPTCHA & Connecting...") }
+        evaluateRecaptchaAssessment(action = "SIGN_IN")
         authManager.signInWithGoogle(
             activity = activity,
             scope = viewModelScope,
@@ -1316,6 +1417,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun performCloudSync() {
         viewModelScope.launch {
+            evaluateRecaptchaAssessment(action = "CLOUD_SYNC")
             _uiState.update { it.copy(authStatusMessage = "Syncing with Cloud Firestore...") }
             try {
                 // Sync Conversations
@@ -4207,6 +4309,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _uiState.update { it.copy(heavyComputationError = e.message, isComputingData = false) }
             }
+        }
+    }
+
+    // ========================================================
+    // Room Database Offline Cache & TTL Expiration Policy
+    // ========================================================
+
+    fun setCacheTtlPreset(preset: com.example.data.TtlPreset, applyToExisting: Boolean = false) {
+        viewModelScope.launch {
+            offlineLlmResponseRepository.updateTtlPolicy(preset, applyToExisting)
+        }
+    }
+
+    fun setAutoCleanupOnLaunch(enabled: Boolean) {
+        cachePolicyPreferences.setAutoCleanupOnLaunch(enabled)
+    }
+
+    fun setProtectTrainingDatasets(enabled: Boolean) {
+        cachePolicyPreferences.setProtectTrainingDatasets(enabled)
+    }
+
+    fun setProtectPinnedItems(enabled: Boolean) {
+        cachePolicyPreferences.setProtectPinnedItems(enabled)
+    }
+
+    fun manualPurgeExpiredCache(onResult: ((Int) -> Unit)? = null) {
+        viewModelScope.launch {
+            val count = offlineLlmResponseRepository.manualPurgeExpired()
+            onResult?.invoke(count)
+        }
+    }
+
+    fun enforceLruCap(onResult: ((Int) -> Unit)? = null) {
+        viewModelScope.launch {
+            val count = offlineLlmResponseRepository.enforceLruCap()
+            onResult?.invoke(count)
+        }
+    }
+
+    fun clearAllNonProtectedCache(onResult: ((Int) -> Unit)? = null) {
+        viewModelScope.launch {
+            val count = offlineLlmResponseRepository.clearAllNonProtected()
+            onResult?.invoke(count)
+        }
+    }
+
+    fun toggleOfflineCachePin(cacheKey: String, currentPinnedState: Boolean) {
+        viewModelScope.launch {
+            offlineLlmResponseRepository.togglePin(cacheKey, currentPinnedState)
+        }
+    }
+
+    fun toggleOfflineCacheTrainingCandidate(cacheKey: String, currentState: Boolean) {
+        viewModelScope.launch {
+            offlineLlmResponseRepository.toggleTrainingCandidate(cacheKey, currentState)
+        }
+    }
+
+    fun deleteOfflineCachedResponse(cacheKey: String) {
+        viewModelScope.launch {
+            offlineLlmResponseRepository.deleteResponse(cacheKey)
         }
     }
 

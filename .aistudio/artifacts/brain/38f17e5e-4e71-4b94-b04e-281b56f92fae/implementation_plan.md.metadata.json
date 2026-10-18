@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan for integrating Google reCAPTCHA Enterprise risk assessment into the Android app. Protects Google Sign-In and Cloud Vault synchronization, records risk score telemetry in audit logs without blocking, and supports BuildConfig secret management with in-app developer settings overrides.",
+  "updatedAt": "2026-10-18T11:09:23.057851174Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

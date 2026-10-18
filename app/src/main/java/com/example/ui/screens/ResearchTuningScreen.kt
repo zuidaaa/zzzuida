@@ -36,7 +36,7 @@ fun ResearchTuningScreen(
     uiState: UiState
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("Datasets (SFT/DPO)", "Proof-of-Thought Cache", "File & Network Manager", "Optimization Vectors", "90s Hardware Benchmark", "Telemetry Dashboard", "Live Hardware & Widgets", "Button & Action Mapping", "Thinking AI Debugger", "MKS² Synergy Stack")
+    val tabTitles = listOf("Datasets (SFT/DPO)", "Proof-of-Thought Cache", "File & Network Manager", "Optimization Vectors", "90s Hardware Benchmark", "Telemetry Dashboard", "Live Hardware & Widgets", "Button & Action Mapping", "Thinking AI Debugger", "MKS² Synergy Stack", "Offline Cache TTL")
 
     Column(
         modifier = Modifier
@@ -102,6 +102,7 @@ fun ResearchTuningScreen(
             7 -> ConfigurableButtonMappingScreen(viewModel = viewModel)
             8 -> ThinkingAiDebuggerScreen(viewModel = viewModel)
             9 -> Mks2SynergyDashboardScreen(viewModel = viewModel)
+            10 -> CacheTtlSettingsScreen(viewModel = viewModel)
         }
     }
 }
